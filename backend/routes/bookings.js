@@ -718,10 +718,7 @@ router.post('/:id/arrived', auth, authorize('driver'), async (req, res) => {
 // Driver: Verify OTP and Complete
 router.post('/:id/verify-complete', auth, authorize('driver'), 
   [
-    body('otp').isLength({ min: 6, max: 6 }).withMessage('Invalid OTP'),
-    body('paymentMethod').isIn(['cash', 'upi', 'staff', 'foc'])
-.withMessage('Invalid payment method'),
-    body('amount').isFloat({ min: 0 }).withMessage('Invalid amount')
+    body('otp').isLength({ min: 6, max: 6 }).withMessage('Invalid OTP')
   ],
   async (req, res) => {
     try {
@@ -730,12 +727,11 @@ router.post('/:id/verify-complete', auth, authorize('driver'),
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { otp, paymentMethod, amount } = req.body;
+      const { otp } = req.body;
       
       console.log('=== Verifying OTP and Completing Booking ===');
       console.log('Booking ID:', req.params.id);
       console.log('Received OTP:', otp);
-      console.log('Payment:', { method: paymentMethod, amount });
       
       const booking = await Booking.findById(req.params.id);
 
@@ -771,16 +767,11 @@ router.post('/:id/verify-complete', auth, authorize('driver'),
       // Complete booking
       booking.status = 'completed';
       booking.verification.verified = true;
-      booking.payment.method = paymentMethod;
-      booking.payment.amount = parseFloat(amount);
-      booking.payment.paidAt = new Date();
       booking.parking.actualEndTime = new Date();
       await booking.save();
 
       console.log('✓ Booking completed:', {
         bookingId: booking.bookingId,
-        paymentMethod,
-        amount: parseFloat(amount),
         completedAt: booking.parking.actualEndTime
       });
 
