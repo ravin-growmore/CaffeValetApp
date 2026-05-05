@@ -102,7 +102,7 @@ class WhatsAppService {
    * - Team Bonito
    */
   async sendOTP(phone, otp) {
-    return this.sendTemplate(phone, 'bonito_otp', [otp]);
+    return this.sendTemplate(phone, 'bonito_otp_20260506033644', [otp]);
   }
 
   /**
@@ -146,7 +146,7 @@ class WhatsAppService {
           messages: [{
             kind: 'template',
             template: {
-              name: 'bonito_booking_confirmation',
+              name: 'bonito_booking_confirmation_20260506035804',
               language: 'en',
               components: [
                 // Body: {{1}} = customerName, {{2}} = bookingId
@@ -212,7 +212,7 @@ class WhatsAppService {
    * - Team Bonito
    */
   async sendRecallNotification(phone, bookingId, estimatedMinutes) {
-    return this.sendTemplate(phone, 'bonito_recall_notification', [
+    return this.sendTemplate(phone, 'bonito_recall_notification_20260506040401', [
       bookingId,
       String(estimatedMinutes)
     ]);
@@ -233,7 +233,7 @@ class WhatsAppService {
    * - Team Bonito
    */
   async sendArrivalNotification(phone, bookingId, otp) {
-    return this.sendTemplate(phone, 'bonito_arrival_otp', [bookingId, otp]);
+    return this.sendTemplate(phone, 'bonito_arrival_otp_20260506040618', [bookingId, otp]);
   }
 
   /**
@@ -250,7 +250,7 @@ class WhatsAppService {
    * – Team Bonito 🚗
    */
   async sendThankYou(phone, customerName, bookingId) {
-    return this.sendTemplate(phone, 'bonito_thank_you', [
+    return this.sendTemplate(phone, 'bonito_thank_you_20260506043146', [
       customerName || 'Valued Customer',
       bookingId
     ]);
