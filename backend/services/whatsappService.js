@@ -42,18 +42,21 @@ class WhatsAppService {
     if (this.enabled) {
       try {
         const payload = {
-          to,
-          type: 'template',
-          template: {
-            name: templateName,
-            language: { code: 'en' },
-            components: variables.length > 0
-              ? [{
-                  type: 'body',
-                  parameters: variables.map(v => ({ type: 'text', text: String(v) }))
-                }]
-              : []
-          }
+          recipient_mobile_number: to,
+          customer_name: 'Customer',
+          messages: [{
+            kind: 'template',
+            template: {
+              name: templateName,
+              language: 'en',
+              components: variables.length > 0
+                ? [{
+                    type: 'body',
+                    parameters: variables.map(v => ({ type: 'text', text: String(v) }))
+                  }]
+                : []
+            }
+          }]
         };
 
         const response = await axios.post(this.apiUrl, payload, {
@@ -138,31 +141,34 @@ class WhatsAppService {
     if (this.enabled) {
       try {
         const payload = {
-          to,
-          type: 'template',
-          template: {
-            name: 'bonito_booking_confirmation',
-            language: { code: 'en' },
-            components: [
-              // Body: {{1}} = customerName, {{2}} = bookingId
-              {
-                type: 'body',
-                parameters: [
-                  { type: 'text', text: customerName || 'Customer' },
-                  { type: 'text', text: bookingId }
-                ]
-              },
-              // Button index 0: dynamic URL suffix / full URL
-              {
-                type: 'button',
-                sub_type: 'url',
-                index: '0',
-                parameters: [
-                  { type: 'text', text: trackingLink }
-                ]
-              }
-            ]
-          }
+          recipient_mobile_number: to,
+          customer_name: customerName || 'Customer',
+          messages: [{
+            kind: 'template',
+            template: {
+              name: 'bonito_booking_confirmation',
+              language: 'en',
+              components: [
+                // Body: {{1}} = customerName, {{2}} = bookingId
+                {
+                  type: 'body',
+                  parameters: [
+                    { type: 'text', text: customerName || 'Customer' },
+                    { type: 'text', text: bookingId }
+                  ]
+                },
+                // Button index 0: dynamic URL suffix / full URL
+                {
+                  type: 'button',
+                  sub_type: 'url',
+                  index: '0',
+                  parameters: [
+                    { type: 'text', text: accessToken }
+                  ]
+                }
+              ]
+            }
+          }]
         };
 
         const response = await axios.post(this.apiUrl, payload, {
