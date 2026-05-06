@@ -48,7 +48,7 @@ class WhatsAppService {
             kind: 'template',
             template: {
               name: templateName,
-              language: 'en',
+              language: 'en_US',
               components: variables.length > 0
                 ? [{
                     type: 'body',
@@ -112,7 +112,7 @@ class WhatsAppService {
             kind: 'template',
             template: {
               name: 'bonito_otp',
-              language: 'en',
+              language: 'en_US',
               components: [
                 {
                   type: 'body',
@@ -189,7 +189,7 @@ class WhatsAppService {
             kind: 'template',
             template: {
               name: 'bonito_booking_confirmation',
-              language: 'en',
+              language: 'en_US',
               components: [
                 // Body: {{1}} = customerName, {{2}} = bookingId
                 {
