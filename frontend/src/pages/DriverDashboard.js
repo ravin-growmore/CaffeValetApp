@@ -22,6 +22,31 @@ const DriverDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
 
+  const playNotificationSound = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      const playNote = (freq, startTime, duration) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + startTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + startTime);
+        osc.stop(ctx.currentTime + startTime + duration);
+      };
+
+      // Play a pleasant "ping-ping" notification sound
+      playNote(880, 0, 0.15); // A5
+      playNote(1108.73, 0.15, 0.3); // C#6
+    } catch (e) {
+      console.error('Audio play failed', e);
+    }
+  };
+
   useEffect(() => {
     if (socket) {
       const handleRecallRequest = (data) => {
@@ -35,6 +60,10 @@ const DriverDashboard = () => {
           data
         };
         setNotifications(prev => [notif, ...prev]);
+        
+        // Play notification sound
+        playNotificationSound();
+
         toast((t) => (
           <div>
             <strong>🚗 Car Recall Request!</strong>
@@ -58,6 +87,7 @@ const DriverDashboard = () => {
           data
         };
         setNotifications(prev => [notif, ...prev]);
+        playNotificationSound();
         toast.success(`📋 New booking: ${data.bookingId}`, { duration: 6000 });
       };
 

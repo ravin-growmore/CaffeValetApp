@@ -43,6 +43,7 @@ const CustomerDashboard = () => {
   const { socket, on, off } = useSocket();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => { fetchBookings(); }, []);
 
@@ -88,12 +89,16 @@ const CustomerDashboard = () => {
   };
 
   const handleRecallCar = async (bookingId) => {
+    if (processing) return;
+    setProcessing(true);
     try {
       await api.post(`/bookings/${bookingId}/recall`);
       toast.success('Car recall request sent!');
       fetchBookings();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to recall car');
+    } finally {
+      setProcessing(false);
     }
   };
 

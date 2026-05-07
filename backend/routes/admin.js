@@ -6,8 +6,8 @@ const Booking = require('../models/Booking');
 const Venue = require('../models/Venue');
 const { auth, authorize } = require('../middleware/auth');
 
-// Get all supervisors (Admin only)
-router.get('/supervisors', auth, authorize('admin'), async (req, res) => {
+// Get all supervisors (Admin, Manager)
+router.get('/supervisors', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const supervisors = await User.find({ role: 'supervisor' })
       .select('-password')
@@ -19,8 +19,8 @@ router.get('/supervisors', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// Get all drivers (Admin only)
-router.get('/drivers', auth, authorize('admin'), async (req, res) => {
+// Get all drivers (Admin, Manager)
+router.get('/drivers', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const drivers = await User.find({ role: 'driver' })
       .populate('supervisor', 'name phone')
@@ -49,7 +49,7 @@ router.post('/supervisors',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, phone, password } = req.body;
+      const { name, phone, password, managerId, venueId } = req.body;
 
       // Check if supervisor already exists
       const existingUser = await User.findOne({ phone });
@@ -57,11 +57,21 @@ router.post('/supervisors',
         return res.status(400).json({ message: 'User with this phone number already exists' });
       }
 
+      // Verify manager if provided
+      if (managerId) {
+        const manager = await User.findById(managerId);
+        if (!manager || manager.role !== 'manager') {
+          return res.status(400).json({ message: 'Invalid manager' });
+        }
+      }
+
       const supervisor = new User({
         name,
         phone,
         password,
-        role: 'supervisor'
+        role: 'supervisor',
+        manager: managerId || null,
+        venue: venueId || null
       });
 
       await supervisor.save();
@@ -99,7 +109,7 @@ router.post('/drivers',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, phone, password, supervisorId } = req.body;
+      const { name, phone, password, supervisorId, venueId } = req.body;
 
       // Check if driver already exists
       const existingUser = await User.findOne({ phone });
@@ -118,7 +128,8 @@ router.post('/drivers',
         phone,
         password,
         role: 'driver',
-        supervisor: supervisorId
+        supervisor: supervisorId,
+        venue: venueId || null
       });
 
       await driver.save();
@@ -144,7 +155,7 @@ router.post('/drivers',
 // Update supervisor (Admin only)
 router.put('/supervisors/:id', auth, authorize('admin'), async (req, res) => {
   try {
-    const { name, phone, password, isActive } = req.body;
+    const { name, phone, password, isActive, managerId, venueId } = req.body;
     const supervisor = await User.findById(req.params.id);
 
     if (!supervisor || supervisor.role !== 'supervisor') {
@@ -155,6 +166,20 @@ router.put('/supervisors/:id', auth, authorize('admin'), async (req, res) => {
     if (phone) supervisor.phone = phone;
     if (password) supervisor.password = password;
     if (typeof isActive !== 'undefined') supervisor.isActive = isActive;
+    
+    if (managerId !== undefined) {
+      if (managerId) {
+        const manager = await User.findById(managerId);
+        if (!manager || manager.role !== 'manager') {
+          return res.status(400).json({ message: 'Invalid manager' });
+        }
+      }
+      supervisor.manager = managerId || null;
+    }
+
+    if (venueId !== undefined) {
+      supervisor.venue = venueId || null;
+    }
 
     await supervisor.save();
 
@@ -165,6 +190,8 @@ router.put('/supervisors/:id', auth, authorize('admin'), async (req, res) => {
         name: supervisor.name,
         phone: supervisor.phone,
         role: supervisor.role,
+        manager: supervisor.manager,
+        venue: supervisor.venue,
         isActive: supervisor.isActive
       }
     });
@@ -177,7 +204,7 @@ router.put('/supervisors/:id', auth, authorize('admin'), async (req, res) => {
 // Update driver (Admin only)
 router.put('/drivers/:id', auth, authorize('admin'), async (req, res) => {
   try {
-    const { name, phone, password, supervisorId, isActive } = req.body;
+    const { name, phone, password, supervisorId, venueId, isActive } = req.body;
     const driver = await User.findById(req.params.id);
 
     if (!driver || driver.role !== 'driver') {
@@ -194,6 +221,9 @@ router.put('/drivers/:id', auth, authorize('admin'), async (req, res) => {
       }
       driver.supervisor = supervisorId;
     }
+    if (venueId !== undefined) {
+      driver.venue = venueId || null;
+    }
     if (typeof isActive !== 'undefined') driver.isActive = isActive;
 
     await driver.save();
@@ -207,6 +237,7 @@ router.put('/drivers/:id', auth, authorize('admin'), async (req, res) => {
         phone: driver.phone,
         role: driver.role,
         supervisor: driver.supervisor,
+        venue: driver.venue,
         isActive: driver.isActive
       }
     });
@@ -289,8 +320,8 @@ router.delete('/drivers/:id', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// Get statistics (Admin only)
-router.get('/stats', auth, authorize('admin'), async (req, res) => {
+// Get statistics (Admin, Manager)
+router.get('/stats', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const totalSupervisors = await User.countDocuments({ role: 'supervisor' });
     const totalDrivers = await User.countDocuments({ role: 'driver' });
@@ -316,10 +347,18 @@ router.get('/stats', auth, authorize('admin'), async (req, res) => {
 
 // ===== VENUE MANAGEMENT ROUTES =====
 
-// Get all venues (Admin only)
-router.get('/venues', auth, authorize('admin'), async (req, res) => {
+// Get all venues (Admin, Manager)
+router.get('/venues', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
-    const venues = await Venue.find()
+    let query = {};
+    if (req.user.role === 'manager') {
+      // Find all supervisors assigned to this manager
+      const supervisors = await User.find({ role: 'supervisor', manager: req.user._id }).select('_id');
+      const supervisorIds = supervisors.map(s => s._id);
+      query.supervisor = { $in: supervisorIds };
+    }
+
+    const venues = await Venue.find(query)
       .populate('supervisor', 'name phone')
       .sort({ createdAt: -1 });
     res.json({ venues });
@@ -443,8 +482,8 @@ router.delete('/venues/:id', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// ===== NEW: LIVE RIDES (Admin only — all active bookings) =====
-router.get('/live-rides', auth, authorize('admin'), async (req, res) => {
+// ===== NEW: LIVE RIDES (Admin, Manager — all active bookings) =====
+router.get('/live-rides', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const rides = await Booking.find({
       status: { $nin: ['completed', 'cancelled'] }
@@ -458,8 +497,8 @@ router.get('/live-rides', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// ===== NEW: ALL BOOKINGS with search + filter + pagination (Admin only) =====
-router.get('/all-bookings', auth, authorize('admin'), async (req, res) => {
+// ===== NEW: ALL BOOKINGS with search + filter + pagination (Admin, Manager) =====
+router.get('/all-bookings', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const {
       page = 1,
@@ -472,6 +511,18 @@ router.get('/all-bookings', auth, authorize('admin'), async (req, res) => {
     } = req.query;
 
     const query = {};
+
+    // Scoping for Manager
+    if (req.user.role === 'manager') {
+      // Find supervisors assigned to manager
+      const supervisors = await User.find({ role: 'supervisor', manager: req.user._id }).select('_id');
+      const supervisorIds = supervisors.map(s => s._id);
+      // Find drivers assigned to those supervisors
+      const drivers = await User.find({ role: 'driver', supervisor: { $in: supervisorIds } }).select('_id');
+      const driverIds = drivers.map(d => d._id);
+      
+      query.driver = { $in: driverIds };
+    }
 
     // Status filter
     if (status) {
@@ -504,7 +555,14 @@ router.get('/all-bookings', auth, authorize('admin'), async (req, res) => {
 
     const [bookings, total] = await Promise.all([
       Booking.find(query)
-        .populate('driver', 'name phone')
+        .populate({
+          path: 'driver',
+          select: 'name phone supervisor venue',
+          populate: [
+            { path: 'supervisor', select: 'name phone venue' },
+            { path: 'venue', select: 'name' }
+          ]
+        })
         .sort({ createdAt: sortOrder })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -518,8 +576,8 @@ router.get('/all-bookings', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// ===== NEW: CUSTOMER RIDES — lookup by phone (Admin only) =====
-router.get('/customer-rides', auth, authorize('admin'), async (req, res) => {
+// ===== NEW: CUSTOMER RIDES — lookup by phone (Admin, Manager) =====
+router.get('/customer-rides', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const { phone } = req.query;
     if (!phone) {
@@ -550,8 +608,8 @@ router.get('/customer-rides', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// ===== NEW: REVENUE STATS (Admin only) =====
-router.get('/revenue-stats', auth, authorize('admin'), async (req, res) => {
+// ===== NEW: REVENUE STATS (Admin, Manager) =====
+router.get('/revenue-stats', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const now = new Date();
     const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
@@ -596,6 +654,120 @@ router.get('/revenue-stats', auth, authorize('admin'), async (req, res) => {
   } catch (error) {
     console.error('Revenue stats error:', error);
     res.status(500).json({ message: 'Failed to fetch revenue stats' });
+  }
+});
+
+// ===== MANAGER MANAGEMENT ROUTES =====
+
+// Get all managers (Admin only)
+router.get('/managers', auth, authorize('admin'), async (req, res) => {
+  try {
+    const managers = await User.find({ role: 'manager' })
+      .select('-password')
+      .sort({ createdAt: -1 });
+    res.json({ managers });
+  } catch (error) {
+    console.error('Get managers error:', error);
+    res.status(500).json({ message: 'Failed to fetch managers' });
+  }
+});
+
+// Create manager (Admin only)
+router.post('/managers',
+  auth,
+  authorize('admin'),
+  [
+    body('name').trim().notEmpty().withMessage('Name is required'),
+    body('phone').isMobilePhone().withMessage('Invalid phone number'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { name, phone, password } = req.body;
+
+      const existingUser = await User.findOne({ phone });
+      if (existingUser) {
+        return res.status(400).json({ message: 'User with this phone number already exists' });
+      }
+
+      const manager = new User({
+        name,
+        phone,
+        password,
+        role: 'manager'
+      });
+
+      await manager.save();
+
+      res.status(201).json({
+        message: 'Manager created successfully',
+        manager: {
+          _id: manager._id,
+          name: manager.name,
+          phone: manager.phone,
+          role: manager.role
+        }
+      });
+    } catch (error) {
+      console.error('Create manager error:', error);
+      res.status(500).json({ message: 'Failed to create manager' });
+    }
+  }
+);
+
+// Update manager (Admin only)
+router.put('/managers/:id', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { name, phone, password, isActive } = req.body;
+    const manager = await User.findById(req.params.id);
+
+    if (!manager || manager.role !== 'manager') {
+      return res.status(404).json({ message: 'Manager not found' });
+    }
+
+    if (name) manager.name = name;
+    if (phone) manager.phone = phone;
+    if (password) manager.password = password;
+    if (typeof isActive !== 'undefined') manager.isActive = isActive;
+
+    await manager.save();
+
+    res.json({
+      message: 'Manager updated successfully',
+      manager: {
+        _id: manager._id,
+        name: manager.name,
+        phone: manager.phone,
+        role: manager.role,
+        isActive: manager.isActive
+      }
+    });
+  } catch (error) {
+    console.error('Update manager error:', error);
+    res.status(500).json({ message: 'Failed to update manager' });
+  }
+});
+
+// Delete manager (Admin only)
+router.delete('/managers/:id', auth, authorize('admin'), async (req, res) => {
+  try {
+    const manager = await User.findById(req.params.id);
+
+    if (!manager || manager.role !== 'manager') {
+      return res.status(404).json({ message: 'Manager not found' });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Manager deleted successfully' });
+  } catch (error) {
+    console.error('Delete manager error:', error);
+    res.status(500).json({ message: 'Failed to delete manager' });
   }
 });
 

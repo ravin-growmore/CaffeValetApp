@@ -17,6 +17,7 @@ import AdminStats from '../components/admin/AdminStats';
 import AdminLiveRides from '../components/admin/AdminLiveRides';
 import AdminCustomerRides from '../components/admin/AdminCustomerRides';
 import AdminAllBookings from '../components/admin/AdminAllBookings';
+import ManageManagers from '../components/admin/ManageManagers';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -41,6 +42,7 @@ const AdminDashboard = () => {
     {
       section: 'Management',
       items: [
+        { id: 'managers',   label: 'Managers',        icon: Shield,     path: '/admin/managers' },
         { id: 'supervisors',label: 'Supervisors',     icon: Shield,     path: '/admin/supervisors' },
         { id: 'drivers',    label: 'Drivers',         icon: Car,        path: '/admin/drivers' },
         { id: 'venues',     label: 'Venues',          icon: MapPin,     path: '/admin/venues' },
@@ -117,6 +119,7 @@ const AdminDashboard = () => {
             <Route path="live"        element={<AdminLiveRides />} />
             <Route path="customers"   element={<AdminCustomerRides />} />
             <Route path="allbookings" element={<AdminAllBookings />} />
+            <Route path="managers"    element={<ManageManagers />} />
             <Route path="supervisors" element={<ManageSupervisors />} />
             <Route path="drivers"     element={<ManageDrivers />} />
             <Route path="venues"      element={<ManageVenues />} />

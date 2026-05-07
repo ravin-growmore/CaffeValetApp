@@ -249,6 +249,8 @@ const MyBookings = () => {
     fetchCompletedBookings();
   }, []);
 
+  const [processingId,      setProcessingId]      = useState(null);
+
   const fetchBookings = async () => {
     try {
       const res = await api.get('/bookings/my-bookings');
@@ -278,32 +280,43 @@ const MyBookings = () => {
     if (!estimatedTime || estimatedTime < 1) {
       toast.error('Please enter valid estimated time'); return;
     }
+    if (processingId) return;
+    setProcessingId(bookingId);
     try {
       await api.post(`/bookings/${bookingId}/estimate-arrival`, { estimatedMinutes: parseInt(estimatedTime) });
       toast.success('Estimated arrival time sent to customer!');
       setEstimatedTime(''); setSelectedBooking(null);
       fetchBookings();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to set arrival time'); }
+    finally { setProcessingId(null); }
   };
 
   const handleMarkArrived = async (bookingId) => {
+    if (processingId) return;
+    setProcessingId(bookingId);
     try {
       await api.post(`/bookings/${bookingId}/arrived`);
       toast.success('Car marked as arrived! OTP sent to customer.');
       fetchBookings();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to mark as arrived'); }
+    finally { setProcessingId(null); }
   };
 
   const handleRecallCar = async (bookingId) => {
+    if (processingId) return;
+    setProcessingId(bookingId);
     try {
       await api.post(`/bookings/${bookingId}/driver-recall`);
       toast.success('Car recall initiated! Set arrival time.');
       fetchBookings();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to recall car'); }
+    finally { setProcessingId(null); }
   };
 
   const handleCompleteBooking = async (bookingId) => {
     if (!otp || otp.length !== 6) { toast.error('Please enter valid 6-digit OTP'); return; }
+    if (processingId) return;
+    setProcessingId(bookingId);
     try {
       const payload = { otp };
       await api.post(`/bookings/${bookingId}/verify-complete`, payload);
@@ -311,6 +324,7 @@ const MyBookings = () => {
       setOtp(''); setSelectedBooking(null);
       fetchBookings(); fetchCompletedBookings();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to complete booking'); }
+    finally { setProcessingId(null); }
   };
 
   const getStatusColor = (status) => ({
@@ -399,10 +413,10 @@ const MyBookings = () => {
                           <div className="detail-row">
                             <Car size={18} color="#FF6B35" />
                             <div>
-                              <strong>{booking.vehicle.number}</strong>
+                              <strong>{booking.vehicle?.number}</strong>
                               <span className="detail-meta">
-                                {booking.vehicle.type.toUpperCase()}
-                                {booking.vehicle.model && ` - ${booking.vehicle.model}`}
+                                {booking.vehicle?.type?.toUpperCase() || ''}
+                                {booking.vehicle?.model && ` - ${booking.vehicle.model}`}
                               </span>
                             </div>
                           </div>
@@ -410,12 +424,12 @@ const MyBookings = () => {
                           <div className="detail-row">
                             <Phone size={18} color="#FF6B35" />
                             <div>
-                              <strong>{booking.customer.name}</strong>
-                              <span className="detail-meta">{booking.customer.phone}</span>
+                              <strong>{booking.customer?.name}</strong>
+                              <span className="detail-meta">{booking.customer?.phone}</span>
                             </div>
                           </div>
 
-                          {booking.location.venue && (
+                          {booking.location?.venue && (
                             <div className="detail-row">
                               <MapPin size={18} color="#FF6B35" />
                               <span>{booking.location.venue}</span>
@@ -423,7 +437,7 @@ const MyBookings = () => {
                           )}
 
                           {/* Security indicators */}
-                          {booking.vehicle?.hasValuables && booking.vehicle.valuables?.length > 0 && (
+                          {booking.vehicle?.hasValuables && booking.vehicle?.valuables?.length > 0 && (
                             <div className="detail-row security-row">
                               <AlertCircle size={16} color="#F59E0B" />
                               <span className="valuables-tag">
@@ -523,8 +537,8 @@ const MyBookings = () => {
                       <span className="status-badge" style={{ backgroundColor: '#6B7280' }}>COMPLETED</span>
                     </div>
                     <div className="booking-info">
-                      <div className="info-row"><Car size={18} /><span>{booking.vehicle.number} - {booking.vehicle.type}</span></div>
-                      <div className="info-row"><Phone size={18} /><span>{booking.customer.name} - {booking.customer.phone}</span></div>
+                      <div className="info-row"><Car size={18} /><span>{booking.vehicle?.number} - {booking.vehicle?.type}</span></div>
+                      <div className="info-row"><Phone size={18} /><span>{booking.customer?.name} - {booking.customer?.phone}</span></div>
                       {booking.location?.venue && (
                         <div className="info-row"><MapPin size={18} /><span>{booking.location.venue}</span></div>
                       )}

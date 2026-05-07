@@ -34,6 +34,8 @@ const LoginPage = () => {
           navigate('/driver/create-booking');
         } else if (result.user.role === 'supervisor') {
           navigate('/supervisor/dashboard');
+        } else if (result.user.role === 'manager') {
+          navigate('/manager/dashboard');
         }
       } else {
         toast.error(result.message);
@@ -88,6 +90,14 @@ const LoginPage = () => {
               >
                 <Shield size={18} />
                 Supervisor
+              </button>
+              <button
+                type="button"
+                className={`role-btn ${formData.role === 'manager' ? 'active' : ''}`}
+                onClick={() => setFormData({ ...formData, role: 'manager' })}
+              >
+                <Shield size={18} />
+                Manager
               </button>
             </div>
           </div>

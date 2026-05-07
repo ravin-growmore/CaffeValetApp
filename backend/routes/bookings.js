@@ -233,7 +233,7 @@ router.get('/my-bookings', auth, authorize('driver'), async (req, res) => {
 // Get All Bookings (Supervisor only - shows only their assigned drivers' bookings)
 router.get('/all', auth, authorize('supervisor'), async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, from, to } = req.query;
     
     // Find all drivers assigned to this supervisor
     const assignedDrivers = await User.find({ 
@@ -252,6 +252,17 @@ router.get('/all', auth, authorize('supervisor'), async (req, res) => {
         query.status = { $in: status.split(',') };
       } else {
         query.status = status;
+      }
+    }
+
+    // Date range filter
+    if (from || to) {
+      query.createdAt = {};
+      if (from) query.createdAt.$gte = new Date(from);
+      if (to) {
+        const endDate = new Date(to);
+        endDate.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = endDate;
       }
     }
 

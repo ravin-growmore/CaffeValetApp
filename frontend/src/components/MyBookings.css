@@ -72,13 +72,46 @@
 }
 
 .booking-card.recalled {
-  border: 3px solid #FF6B35;
-  background: linear-gradient(to bottom, #FFF5F2 0%, white 100%);
-  box-shadow: 0 6px 16px rgba(255, 107, 53, 0.2);
+  border: 3px solid #E85A24;
+  background: #FF6B35;
+  box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4);
+}
+
+.booking-card.recalled .booking-header h3,
+.booking-card.recalled .booking-time,
+.booking-card.recalled .detail-row strong,
+.booking-card.recalled .detail-meta,
+.booking-card.recalled .detail-row span,
+.booking-card.recalled .action-title {
+  color: white !important;
+}
+
+.booking-card.recalled .booking-header {
+  background: transparent !important;
+  border-bottom-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.booking-card.recalled .edit-booking-btn {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.booking-card.recalled .edit-booking-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.booking-card.recalled .action-section {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-left-color: white !important;
+}
+
+.booking-card.recalled svg {
+  color: white !important;
+  stroke: white !important;
 }
 
 .booking-card.recalled:hover {
-  box-shadow: 0 10px 24px rgba(255, 107, 53, 0.3);
+  box-shadow: 0 10px 24px rgba(255, 107, 53, 0.5);
 }
 
 .booking-card.completed {

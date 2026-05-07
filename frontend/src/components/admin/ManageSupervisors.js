@@ -7,6 +7,8 @@ import './ManageUsers.css';
 
 const ManageSupervisors = () => {
   const [supervisors, setSupervisors] = useState([]);
+  const [managers, setManagers] = useState([]);
+  const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -14,6 +16,8 @@ const ManageSupervisors = () => {
     name: '',
     phone: '',
     password: '',
+    managerId: '',
+    venueId: '',
     isActive: true
   });
 
@@ -23,10 +27,16 @@ const ManageSupervisors = () => {
 
   const fetchSupervisors = async () => {
     try {
-      const response = await api.get('/admin/supervisors');
-      setSupervisors(response.data.supervisors);
+      const [supRes, manRes, venRes] = await Promise.all([
+        api.get('/admin/supervisors'),
+        api.get('/admin/managers'),
+        api.get('/admin/venues')
+      ]);
+      setSupervisors(supRes.data.supervisors);
+      setManagers(manRes.data.managers || []);
+      setVenues(venRes.data.venues || []);
     } catch (error) {
-      toast.error('Failed to fetch supervisors');
+      toast.error('Failed to fetch data');
     } finally {
       setLoading(false);
     }
@@ -55,6 +65,8 @@ const ManageSupervisors = () => {
       name: supervisor.name,
       phone: supervisor.phone,
       password: '',
+      managerId: supervisor.manager?._id || supervisor.manager || '',
+      venueId: supervisor.venue?._id || supervisor.venue || '',
       isActive: supervisor.isActive
     });
     setShowForm(true);
@@ -73,7 +85,7 @@ const ManageSupervisors = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', phone: '', password: '', isActive: true });
+    setFormData({ name: '', phone: '', password: '', managerId: '', venueId: '', isActive: true });
     setEditingId(null);
     setShowForm(false);
   };
@@ -125,6 +137,32 @@ const ManageSupervisors = () => {
                   maxLength="10"
                   required
                 />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Assign Manager</label>
+                <select
+                  value={formData.managerId}
+                  onChange={(e) => setFormData({...formData, managerId: e.target.value})}
+                >
+                  <option value="">None</option>
+                  {managers.map(m => (
+                    <option key={m._id} value={m._id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Assign Venue</label>
+                <select
+                  value={formData.venueId}
+                  onChange={(e) => setFormData({...formData, venueId: e.target.value})}
+                >
+                  <option value="">None</option>
+                  {venues.map(v => (
+                    <option key={v._id} value={v._id}>{v.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="form-row">

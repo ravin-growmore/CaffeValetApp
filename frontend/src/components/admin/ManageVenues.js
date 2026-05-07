@@ -167,23 +167,20 @@ const ManageVenues = () => {
               </p>
             </div>
 
-            {formData.requiresUpfrontPayment && (
-              <div className="form-group">
-                <label>Assign Supervisor *</label>
-                <select
-                  value={formData.supervisorId}
-                  onChange={(e) => setFormData({...formData, supervisorId: e.target.value})}
-                  required={formData.requiresUpfrontPayment}
-                >
-                  <option value="">Select Supervisor</option>
-                  {supervisors.map(sup => (
-                    <option key={sup._id} value={sup._id}>
-                      {sup.name} ({sup.phone})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div className="form-group">
+              <label>Assign Supervisor</label>
+              <select
+                value={formData.supervisorId}
+                onChange={(e) => setFormData({...formData, supervisorId: e.target.value})}
+              >
+                <option value="">Select Supervisor</option>
+                {supervisors.map(sup => (
+                  <option key={sup._id} value={sup._id}>
+                    {sup.name} ({sup.phone})
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div className="form-group">
               <label className="checkbox-label">

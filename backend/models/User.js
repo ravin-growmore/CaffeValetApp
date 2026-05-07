@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['driver', 'customer', 'supervisor', 'admin'],
+    enum: ['driver', 'customer', 'supervisor', 'admin', 'manager'],
     required: true
   },
   supervisor: {
@@ -31,6 +31,17 @@ const userSchema = new mongoose.Schema({
     required: function() {
       return this.role === 'driver';
     }
+  },
+  manager: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: function() {
+      return this.role === 'supervisor';
+    }
+  },
+  venue: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Venue'
   },
   isActive: {
     type: Boolean,

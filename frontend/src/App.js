@@ -11,6 +11,7 @@ import AdminLogin from './pages/AdminLogin';
 import DriverDashboard from './pages/DriverDashboard';
 import CustomerDashboard from './pages/CustomerDashboard';
 import SupervisorDashboard from './pages/SupervisorDashboard';
+import ManagerDashboard from './pages/ManagerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import CustomerLogin from './pages/CustomerLogin';
 import CustomerAccess from './pages/CustomerAccess';
@@ -93,6 +94,15 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['supervisor']}>
                   <SupervisorDashboard />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/manager/*" 
+              element={
+                <ProtectedRoute allowedRoles={['manager']}>
+                  <ManagerDashboard />
                 </ProtectedRoute>
               } 
             />

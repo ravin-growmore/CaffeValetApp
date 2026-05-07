@@ -15,7 +15,8 @@ const SupervisorDashboard = () => {
   const [stats,    setStats]    = useState({});
   const [bookings, setBookings] = useState([]);
   const [loading,  setLoading]  = useState(true);
-  const [filter,   setFilter]   = useState('active');
+  const [filter,   setFilter]   = useState('active'); // Status filter
+  const [dateFilter, setDateFilter] = useState('today'); // Date filter
 
   const fetchStats = useCallback(async () => {
     try {
@@ -26,19 +27,37 @@ const SupervisorDashboard = () => {
 
   const fetchBookings = useCallback(async () => {
     try {
+      let fromDate = new Date();
+      let toDate = new Date();
+      
+      fromDate.setHours(0, 0, 0, 0);
+      toDate.setHours(23, 59, 59, 999);
+
+      if (dateFilter === 'week') {
+        fromDate.setDate(fromDate.getDate() - 7);
+      } else if (dateFilter === 'month') {
+        fromDate.setMonth(fromDate.getMonth() - 1);
+      } else if (dateFilter === 'all') {
+        fromDate = new Date(2020, 0, 1);
+      }
+
       const params = filter === 'all'
         ? {}
         : { status: filter === 'active' ? 'parked,recall-requested,in-transit,arrived' : 'completed' };
+      
+      params.from = fromDate.toISOString();
+      params.to = toDate.toISOString();
+
       const response = await api.get('/bookings/all', { params });
       setBookings(response.data.bookings);
     } catch { toast.error('Failed to fetch bookings'); }
     finally { setLoading(false); }
-  }, [filter]);
+  }, [filter, dateFilter]);
 
   useEffect(() => {
     fetchStats();
     fetchBookings();
-  }, [filter, fetchStats, fetchBookings]);
+  }, [filter, dateFilter, fetchStats, fetchBookings]);
 
   useEffect(() => {
     if (socket) {
@@ -192,6 +211,21 @@ const SupervisorDashboard = () => {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="date-filters" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <button className={`filter-btn ${dateFilter === 'today' ? 'active' : ''}`} onClick={() => setDateFilter('today')}>
+              Today
+            </button>
+            <button className={`filter-btn ${dateFilter === 'week' ? 'active' : ''}`} onClick={() => setDateFilter('week')}>
+              This Week
+            </button>
+            <button className={`filter-btn ${dateFilter === 'month' ? 'active' : ''}`} onClick={() => setDateFilter('month')}>
+              This Month
+            </button>
+            <button className={`filter-btn ${dateFilter === 'all' ? 'active' : ''}`} onClick={() => setDateFilter('all')}>
+              All Time
+            </button>
           </div>
 
           {loading ? (
