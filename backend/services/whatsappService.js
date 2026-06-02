@@ -13,8 +13,8 @@ class WhatsAppService {
     );
 
     if (this.enabled) {
-      this.apiKey  = process.env.CHATMITRA_API_KEY;
-      this.apiUrl  = process.env.CHATMITRA_API_URL; // e.g. https://app.chatmitra.com/api/v1/messages
+      this.apiKey = process.env.CHATMITRA_API_KEY;
+      this.apiUrl = process.env.CHATMITRA_API_URL; // e.g. https://app.chatmitra.com/api/v1/messages
       console.log('✓ ChatMitra WhatsApp Service initialized');
     } else {
       console.log('⚠ WhatsApp Service running in MOCK mode (CHATMITRA_API_KEY not configured)');
@@ -51,9 +51,9 @@ class WhatsAppService {
               language: 'en_US',
               components: variables.length > 0
                 ? [{
-                    type: 'body',
-                    parameters: variables.map(v => ({ type: 'text', text: String(v) }))
-                  }]
+                  type: 'body',
+                  parameters: variables.map(v => ({ type: 'text', text: String(v) }))
+                }]
                 : []
             }
           }]
@@ -279,7 +279,7 @@ class WhatsAppService {
   }
 
   /**
-   * Template: bonito_thank_you_20260506043146
+   * Template: bonito_thank_you_20260602161841
    * Variables: {{1}} = customerName, {{2}} = bookingId
    *
    * Message:
@@ -292,7 +292,7 @@ class WhatsAppService {
    * – Team Bonito 🚗
    */
   async sendThankYou(phone, customerName, bookingId) {
-    return this.sendTemplate(phone, 'bonito_thank_you_20260506043146', [
+    return this.sendTemplate(phone, 'bonito_thank_you_20260602161841', [
       customerName || 'Valued Customer',
       bookingId
     ]);
