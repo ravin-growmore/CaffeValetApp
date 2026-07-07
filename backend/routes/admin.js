@@ -622,33 +622,48 @@ router.get('/revenue-stats', auth, authorize('admin', 'manager', 'supervisor'), 
     const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
     const last30Start = new Date(now); last30Start.setDate(now.getDate() - 29); last30Start.setHours(0, 0, 0, 0);
 
+    // Build role-based driver filter for statistics
+    let driverFilter = {};
+    if (req.user.role === 'supervisor') {
+      const assignedDrivers = await User.find({ role: 'driver', supervisor: req.user._id }).select('_id');
+      const driverIds = assignedDrivers.map(d => d._id);
+      driverFilter = { driver: { $in: driverIds } };
+    } else if (req.user.role === 'manager') {
+      const supervisors = await User.find({ role: 'supervisor', manager: req.user._id }).select('_id');
+      const supervisorIds = supervisors.map(s => s._id);
+      const assignedDrivers = await User.find({ role: 'driver', supervisor: { $in: supervisorIds } }).select('_id');
+      const driverIds = assignedDrivers.map(d => d._id);
+      driverFilter = { driver: { $in: driverIds } };
+    }
+
     const [todayRev, weekRev, monthRev, totalRev] = await Promise.all([
       Booking.aggregate([
-        { $match: { 'payment.status': 'completed', createdAt: { $gte: todayStart }, 'payment.amount': { $gt: 0 } } },
+        { $match: { ...driverFilter, 'payment.status': 'completed', createdAt: { $gte: todayStart }, 'payment.amount': { $gt: 0 } } },
         { $group: { _id: null, total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
       ]),
       Booking.aggregate([
-        { $match: { 'payment.status': 'completed', createdAt: { $gte: weekStart }, 'payment.amount': { $gt: 0 } } },
+        { $match: { ...driverFilter, 'payment.status': 'completed', createdAt: { $gte: weekStart }, 'payment.amount': { $gt: 0 } } },
         { $group: { _id: null, total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
       ]),
       Booking.aggregate([
-        { $match: { 'payment.status': 'completed', createdAt: { $gte: monthStart }, 'payment.amount': { $gt: 0 } } },
+        { $match: { ...driverFilter, 'payment.status': 'completed', createdAt: { $gte: monthStart }, 'payment.amount': { $gt: 0 } } },
         { $group: { _id: null, total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
       ]),
       Booking.aggregate([
-        { $match: { 'payment.status': 'completed', 'payment.amount': { $gt: 0 } } },
+        { $match: { ...driverFilter, 'payment.status': 'completed', 'payment.amount': { $gt: 0 } } },
         { $group: { _id: null, total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
       ])
     ]);
 
     // Payment method breakdown (all time)
     const paymentBreakdown = await Booking.aggregate([
-      { $match: { 'payment.status': 'completed' } },
+      { $match: { ...driverFilter, 'payment.status': 'completed' } },
       { $group: { _id: '$payment.method', total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
     ]);
 
     // Payment status counts (successful / failed / pending)
     const paymentStatusCounts = await Booking.aggregate([
+      { $match: { ...driverFilter } },
       { $group: { _id: '$payment.status', count: { $sum: 1 }, total: { $sum: '$payment.amount' } } }
     ]);
     const statusMap = {};
@@ -658,6 +673,7 @@ router.get('/revenue-stats', auth, authorize('admin', 'manager', 'supervisor'), 
     const dailyData = await Booking.aggregate([
       {
         $match: {
+          ...driverFilter,
           'payment.status': 'completed',
           'payment.amount': { $gt: 0 },
           createdAt: { $gte: last30Start }
@@ -702,6 +718,7 @@ router.get('/revenue-stats', auth, authorize('admin', 'manager', 'supervisor'), 
     const weeklyData = await Booking.aggregate([
       {
         $match: {
+          ...driverFilter,
           'payment.status': 'completed',
           'payment.amount': { $gt: 0 },
           createdAt: { $gte: new Date(now.getTime() - 84 * 24 * 60 * 60 * 1000) }
@@ -721,6 +738,7 @@ router.get('/revenue-stats', auth, authorize('admin', 'manager', 'supervisor'), 
     const monthlyData = await Booking.aggregate([
       {
         $match: {
+          ...driverFilter,
           'payment.status': 'completed',
           'payment.amount': { $gt: 0 },
           createdAt: { $gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) }
