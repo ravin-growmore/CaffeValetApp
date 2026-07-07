@@ -168,9 +168,7 @@ const LoginPage = () => {
             Customer Login
           </button>
 
-          <p className="demo-credentials">
-            <strong>Demo:</strong> Driver: 9999999999 / driver123 &nbsp;|&nbsp; Supervisor: 8888888888 / super123
-          </p>
+
         </motion.form>
       </div>
     </div>
