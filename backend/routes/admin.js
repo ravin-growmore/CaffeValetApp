@@ -613,8 +613,8 @@ router.get('/customer-rides', auth, authorize('admin', 'manager'), async (req, r
   }
 });
 
-// ===== ENHANCED: REVENUE & TRANSACTION STATS (Admin, Manager) =====
-router.get('/revenue-stats', auth, authorize('admin', 'manager'), async (req, res) => {
+// ===== ENHANCED: REVENUE & TRANSACTION STATS (Admin, Manager, Supervisor) =====
+router.get('/revenue-stats', auth, authorize('admin', 'manager', 'supervisor'), async (req, res) => {
   try {
     const now = new Date();
     const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
