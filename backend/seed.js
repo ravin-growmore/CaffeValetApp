@@ -25,109 +25,77 @@ const seedData = async () => {
     // ─────────────────────────────────────────────
     const adminExists = await User.findOne({ phone: '7777777777' });
     if (!adminExists) {
-      await new User({ name: 'Admin', phone: '7777777777', password: 'admin123', role: 'admin' }).save();
+      await new User({ name: 'Admin', phone: '7777777777', password: 'Admin123', role: 'admin' }).save();
       console.log('✓ Created admin: Admin (7777777777)');
     } else {
       console.log('- Admin already exists: Admin (7777777777)');
     }
 
     // ─────────────────────────────────────────────
-    // THANE LOCATION
+    // CAFFE QUATTRO — MANAGER
     // ─────────────────────────────────────────────
-    let thaneSupervisorId;
-    const thaneSupervisor = await User.findOne({ phone: '8800000001' });
-    if (!thaneSupervisor) {
-      const ts = await new User({
-        name: 'Thane Supervisor',
-        phone: '8800000001',
-        password: 'super123',
-        role: 'supervisor'
+    let managerId;
+    const manager = await User.findOne({ phone: '7700000001' });
+    if (!manager) {
+      const mg = await new User({
+        name: 'Caffe Quattro Manager',
+        phone: '7700000001',
+        password: 'Manager123',
+        role: 'manager'
       }).save();
-      thaneSupervisorId = ts._id;
-      console.log('✓ Created Thane Supervisor (8800000001)');
+      managerId = mg._id;
+      console.log('✓ Created Manager (7700000001)');
     } else {
-      thaneSupervisorId = thaneSupervisor._id;
-      console.log('- Thane Supervisor already exists (8800000001)');
-    }
-
-    const thaneDriver = await User.findOne({ phone: '9900000001' });
-    if (!thaneDriver) {
-      await new User({
-        name: 'Thane Driver',
-        phone: '9900000001',
-        password: 'driver123',
-        role: 'driver',
-        supervisor: thaneSupervisorId
-      }).save();
-      console.log('✓ Created Thane Driver (9900000001) → assigned to Thane Supervisor');
-    } else {
-      console.log('- Thane Driver already exists (9900000001)');
+      managerId = manager._id;
+      console.log('- Manager already exists (7700000001)');
     }
 
     // ─────────────────────────────────────────────
-    // ANDHERI LOCATION
+    // CAFFE QUATTRO — ANDHERI SUPERVISOR
     // ─────────────────────────────────────────────
-    let andheriSupervisorId;
-    const andheriSupervisor = await User.findOne({ phone: '8800000002' });
-    if (!andheriSupervisor) {
-      const as = await new User({
+    let supervisorId;
+    const supervisor = await User.findOne({ phone: '8800000001' });
+    if (!supervisor) {
+      const sv = await new User({
         name: 'Andheri Supervisor',
-        phone: '8800000002',
-        password: 'super123',
-        role: 'supervisor'
+        phone: '8800000001',
+        password: 'Super123',
+        role: 'supervisor',
+        manager: managerId
       }).save();
-      andheriSupervisorId = as._id;
-      console.log('✓ Created Andheri Supervisor (8800000002)');
+      supervisorId = sv._id;
+      console.log('✓ Created Andheri Supervisor (8800000001)');
     } else {
-      andheriSupervisorId = andheriSupervisor._id;
-      console.log('- Andheri Supervisor already exists (8800000002)');
+      supervisorId = supervisor._id;
+      console.log('- Andheri Supervisor already exists (8800000001)');
     }
 
-    const andheriDriver = await User.findOne({ phone: '9900000002' });
-    if (!andheriDriver) {
+    const driver1 = await User.findOne({ phone: '9900000001' });
+    if (!driver1) {
       await new User({
-        name: 'Andheri Driver',
+        name: 'Andheri Driver 1',
+        phone: '9900000001',
+        password: 'Driver123',
+        role: 'driver',
+        supervisor: supervisorId
+      }).save();
+      console.log('✓ Created Andheri Driver 1 (9900000001) → assigned to Andheri Supervisor');
+    } else {
+      console.log('- Andheri Driver 1 already exists (9900000001)');
+    }
+
+    const driver2 = await User.findOne({ phone: '9900000002' });
+    if (!driver2) {
+      await new User({
+        name: 'Andheri Driver 2',
         phone: '9900000002',
-        password: 'driver123',
+        password: 'Driver123',
         role: 'driver',
-        supervisor: andheriSupervisorId
+        supervisor: supervisorId
       }).save();
-      console.log('✓ Created Andheri Driver (9900000002) → assigned to Andheri Supervisor');
+      console.log('✓ Created Andheri Driver 2 (9900000002) → assigned to Andheri Supervisor');
     } else {
-      console.log('- Andheri Driver already exists (9900000002)');
-    }
-
-    // ─────────────────────────────────────────────
-    // DEMO (legacy) — keep for backward compat
-    // ─────────────────────────────────────────────
-    let demoSupervisorId;
-    const demoSupervisor = await User.findOne({ phone: '8888888888' });
-    if (!demoSupervisor) {
-      const ds = await new User({
-        name: 'Demo Supervisor',
-        phone: '8888888888',
-        password: 'super123',
-        role: 'supervisor'
-      }).save();
-      demoSupervisorId = ds._id;
-      console.log('✓ Created Demo Supervisor (8888888888)');
-    } else {
-      demoSupervisorId = demoSupervisor._id;
-      console.log('- Demo Supervisor already exists (8888888888)');
-    }
-
-    const demoDriver = await User.findOne({ phone: '9999999999' });
-    if (!demoDriver) {
-      await new User({
-        name: 'Demo Driver',
-        phone: '9999999999',
-        password: 'driver123',
-        role: 'driver',
-        supervisor: demoSupervisorId
-      }).save();
-      console.log('✓ Created Demo Driver (9999999999)');
-    } else {
-      console.log('- Demo Driver already exists (9999999999)');
+      console.log('- Andheri Driver 2 already exists (9900000002)');
     }
 
     // ─────────────────────────────────────────────
@@ -135,37 +103,11 @@ const seedData = async () => {
     // ─────────────────────────────────────────────
     const venues = [
       {
-        name: 'Bonito - Thane',
+        name: 'Caffe Quattro - Andheri',
         requiresUpfrontPayment: false,
-        supervisor: thaneSupervisorId,
+        supervisor: supervisorId,
         isActive: true,
-        parkingSpots: ['Bonito - Thane']
-      },
-      {
-        name: 'Bonito - Andheri',
-        requiresUpfrontPayment: false,
-        supervisor: andheriSupervisorId,
-        isActive: true,
-        parkingSpots: ['Bonito - Andheri']
-      },
-      {
-        name: 'Mall Parking',
-        requiresUpfrontPayment: false,
-        isActive: true,
-        parkingSpots: ['M1', 'M2', 'M3', 'B1', 'B2', 'B3']
-      },
-      {
-        name: 'Shopping Center',
-        requiresUpfrontPayment: false,
-        isActive: true,
-        parkingSpots: ['P1', 'P2', 'P3', 'P4']
-      },
-      {
-        name: 'Restaurant Zone',
-        requiresUpfrontPayment: true,
-        supervisor: demoSupervisorId,
-        isActive: true,
-        parkingSpots: ['R1', 'R2', 'R3']
+        parkingSpots: ['Caffe Quattro - Andheri']
       }
     ];
 
@@ -175,7 +117,6 @@ const seedData = async () => {
         await new Venue(venueData).save();
         console.log(`✓ Created venue: ${venueData.name} (${venueData.parkingSpots.length} spots)`);
       } else {
-        // Update parking spots if empty
         if (!existing.parkingSpots || existing.parkingSpots.length === 0) {
           existing.parkingSpots = venueData.parkingSpots;
           await existing.save();
@@ -191,26 +132,25 @@ const seedData = async () => {
     // ─────────────────────────────────────────────
     console.log('\n✓ Seed completed successfully!\n');
     console.log('┌─────────────────────────────────────────────────────────────┐');
-    console.log('│                     LOGIN CREDENTIALS                      │');
+    console.log('│               CAFFE QUATTRO — LOGIN CREDENTIALS             │');
     console.log('├─────────────────────────────────────────────────────────────┤');
     console.log('│  ADMIN                                                      │');
-    console.log('│    Phone: 7777777777    Password: admin123                  │');
+    console.log('│    Phone: 7777777777    Password: Admin123                  │');
     console.log('├─────────────────────────────────────────────────────────────┤');
-    console.log('│  THANE LOCATION                                             │');
-    console.log('│    Supervisor  Phone: 8800000001  Password: super123        │');
-    console.log('│    Driver      Phone: 9900000001  Password: driver123       │');
-    console.log('│    QR Link: /book/9900000001                                │');
+    console.log('│  MANAGER                                                    │');
+    console.log('│    Phone: 7700000001    Password: Manager123                │');
     console.log('├─────────────────────────────────────────────────────────────┤');
     console.log('│  ANDHERI LOCATION                                           │');
-    console.log('│    Supervisor  Phone: 8800000002  Password: super123        │');
-    console.log('│    Driver      Phone: 9900000002  Password: driver123       │');
-    console.log('│    QR Link: /book/9900000002                                │');
+    console.log('│    Supervisor  Phone: 8800000001  Password: Super123        │');
+    console.log('│    Driver 1    Phone: 9900000001  Password: Driver123       │');
+    console.log('│    Driver 2    Phone: 9900000002  Password: Driver123       │');
+    console.log('│    QR Link 1: /book/9900000001                              │');
+    console.log('│    QR Link 2: /book/9900000002                              │');
     console.log('├─────────────────────────────────────────────────────────────┤');
-    console.log('│  DEMO (Legacy)                                              │');
-    console.log('│    Supervisor  Phone: 8888888888  Password: super123        │');
-    console.log('│    Driver      Phone: 9999999999  Password: driver123       │');
+    console.log('│  VENUE                                                      │');
+    console.log('│    Caffe Quattro - Andheri                                  │');
     console.log('└─────────────────────────────────────────────────────────────┘');
-    console.log('\n📍 Venues: Thane · Andheri · Mall Parking · Shopping Center · Restaurant Zone');
+    console.log('\n📍 Venue: Caffe Quattro - Andheri');
     console.log('');
 
     process.exit(0);

@@ -123,6 +123,36 @@ const CustomerBookingForm = () => {
         notes: { customerName: formData.customerName, customerPhone: formData.customerPhone }
       });
 
+      if (data.orderId && data.orderId.startsWith('mock_order_')) {
+        toast.loading('Processing Test Payment (Mock Mode)...', { duration: 1500 });
+        setTimeout(async () => {
+          try {
+            const verify = await axios.post(`${API_URL}/api/payment/verify`, {
+              razorpay_order_id: data.orderId,
+              razorpay_payment_id: `pay_mock_${Date.now()}`,
+              razorpay_signature: 'mock_signature'
+            });
+
+            if (verify.data.success) {
+              setPaymentData({
+                orderId: data.orderId,
+                paymentId: verify.data.paymentId,
+                signature: 'mock_signature'
+              });
+              setPaymentState('success');
+              toast.success('Test Payment Successful! (Mock Mode) ✓');
+            } else {
+              setPaymentState('failed');
+              toast.error('Test Payment Verification Failed.');
+            }
+          } catch {
+            setPaymentState('failed');
+            toast.error('Test Payment Verification Error.');
+          }
+        }, 1500);
+        return;
+      }
+
       const options = {
         key: RAZORPAY_KEY,
         amount: data.amount,

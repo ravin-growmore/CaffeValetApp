@@ -1,9 +1,12 @@
 const axios = require('axios');
 
 /**
- * ChatMitra WhatsApp Service
+ * ChatMitra WhatsApp Service — Caffe Quattro Valet
  * Sends WhatsApp template messages via ChatMitra API.
  * Falls back to MOCK mode if CHATMITRA_API_KEY or CHATMITRA_API_URL are not set.
+ *
+ * ⚠ IMPORTANT: The template names below must be created and approved in
+ *   your ChatMitra dashboard before they will work in production.
  */
 class WhatsAppService {
   constructor() {
@@ -14,7 +17,7 @@ class WhatsAppService {
 
     if (this.enabled) {
       this.apiKey = process.env.CHATMITRA_API_KEY;
-      this.apiUrl = process.env.CHATMITRA_API_URL; // e.g. https://app.chatmitra.com/api/v1/messages
+      this.apiUrl = process.env.CHATMITRA_API_URL;
       console.log('✓ ChatMitra WhatsApp Service initialized');
     } else {
       console.log('⚠ WhatsApp Service running in MOCK mode (CHATMITRA_API_KEY not configured)');
@@ -88,8 +91,6 @@ class WhatsAppService {
 
   // ─────────────────────────────────────────────────────────────
   // HIGH-LEVEL METHODS  (one per notification type)
-  // Template names below must match EXACTLY what you name them
-  // in the ChatMitra dashboard.
   // ─────────────────────────────────────────────────────────────
 
   /**
@@ -97,9 +98,9 @@ class WhatsAppService {
    * Variables: {{1}} = OTP code
    *
    * Message:
-   * Your Bonito Valet verification OTP is: *{{1}}*
+   * Your Caffe Quattro Valet verification OTP is: *{{1}}*
    * Valid for 10 minutes. Do not share this code with anyone.
-   * - Team Bonito
+   * - Team Caffe Quattro
    */
   async sendOTP(phone, otp) {
     const to = this._formatPhone(phone);
@@ -151,31 +152,31 @@ class WhatsAppService {
    * Template: bonito_booking_confirmation_20260506035804
    * Body variables:  {{1}} = customerName, {{2}} = bookingId
    * Button (index 0): Visit Website → "Track my car"
-   *   Template URL in ChatMitra: https://bonitovaletapp.onrender.com/customer/access/{{1}}
-   *   We pass only the ACCESS TOKEN as the button parameter (the {{1}} suffix).
+   *   Template URL in ChatMitra: <FRONTEND_URL>/customer/access/{{1}}
+   *   We pass only the ACCESS TOKEN as the button parameter.
    *
    * Message Body:
-   * Hi *{{1}}* 👋, your Bonito Valet booking is confirmed!
+   * Hi *{{1}}* 👋, your Caffe Quattro Valet booking is confirmed!
    *
    * 🚗 *Booking ID:* {{2}}
    *
    * *HOW IT WORKS — 4 EASY STEPS*
-   * 
+   *
    * 1️⃣ *Car Parked* ✅
    * Your vehicle is now safely parked by our valet driver.
-   * 
+   *
    * 2️⃣ *Request Your Car* 🔁
    * When you're ready to leave, tap the Track my car button below to request your car.
-   * 
+   *
    * 3️⃣ *Track in Real Time* 📍
    * You'll get an estimated arrival time and can track your car as the driver brings it to you.
-   * 
+   *
    * 4️⃣ *Verify & Drive Away* 🔐
    * When your car arrives, you'll receive an OTP. Share it with the driver to verify and collect your vehicle.
    *
-   * - Team Bonito
+   * - Team Caffe Quattro
    *
-   * [Button] Track my car → https://bonitovaletapp.onrender.com/customer/access/<accessToken>
+   * [Button] Track my car → <FRONTEND_URL>/customer/access/<accessToken>
    */
   async sendBookingConfirmation(phone, customerName, bookingId, accessToken) {
     const to = this._formatPhone(phone);
@@ -199,7 +200,7 @@ class WhatsAppService {
                     { type: 'text', text: bookingId }
                   ]
                 },
-                // Button index 0: dynamic URL suffix / full URL
+                // Button index 0: dynamic URL suffix
                 {
                   type: 'button',
                   sub_type: 'url',
@@ -234,7 +235,7 @@ class WhatsAppService {
       console.log(`   Template : bonito_booking_confirmation_20260506035804`);
       console.log(`   {{1}}    : ${customerName || 'Customer'}`);
       console.log(`   {{2}}    : ${bookingId}`);
-      console.log(`   [Button] : Track my car → ${trackingLink}`);
+      console.log(`   [Button] : Track my car → accessToken=${accessToken}`);
       console.log('─────────────────────────────\n');
       return { success: true, mock: true };
     }
@@ -251,7 +252,7 @@ class WhatsAppService {
    * *Estimated arrival:* {{2}} minutes
    *
    * Please be ready at the pickup point.
-   * - Team Bonito
+   * - Team Caffe Quattro
    */
   async sendRecallNotification(phone, bookingId, estimatedMinutes) {
     return this.sendTemplate(phone, 'bonito_recall_notification_20260506040401', [
@@ -270,9 +271,9 @@ class WhatsAppService {
    * *Booking:* {{1}}
    * *Handover OTP:* *{{2}}*
    *
-   * Share this OTP only with the Bonito driver to collect your car.
+   * Share this OTP only with the Caffe Quattro driver to collect your car.
    * Valid for 10 minutes.
-   * - Team Bonito
+   * - Team Caffe Quattro
    */
   async sendArrivalNotification(phone, bookingId, otp) {
     return this.sendTemplate(phone, 'bonito_arrival_otp_20260506040618', [bookingId, otp]);
@@ -283,13 +284,13 @@ class WhatsAppService {
    * Variables: {{1}} = customerName, {{2}} = bookingId
    *
    * Message:
-   * Thank you for choosing Bonito Valet, *{{1}}*! 🙏
+   * Thank you for choosing Caffe Quattro Valet, *{{1}}*! 🙏
    *
    * Your booking *{{2}}* has been completed successfully.
    *
    * We hope you had a seamless experience. It was our pleasure to serve you — we look forward to seeing you again!
    *
-   * – Team Bonito 🚗
+   * – Team Caffe Quattro 🚗
    */
   async sendThankYou(phone, customerName, bookingId) {
     return this.sendTemplate(phone, 'bonito_thank_you_20260602161841', [
