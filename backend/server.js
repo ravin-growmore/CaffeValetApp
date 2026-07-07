@@ -28,7 +28,19 @@ const io = socketIo(server, {
 });
 
 // ✅ Middleware
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "script-src": ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com"],
+        "frame-src": ["'self'", "https://api.razorpay.com", "https://checkout.razorpay.com"],
+        "connect-src": ["'self'", "https://api.razorpay.com", "wss:", "ws:", "https://api.brevo.com"],
+        "img-src": ["'self'", "data:", "https://*.razorpay.com", "blob:"],
+      },
+    },
+  })
+);
 
 app.use(
   cors({
