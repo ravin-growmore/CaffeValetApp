@@ -384,7 +384,7 @@ router.post('/venues',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, requiresUpfrontPayment, supervisorId, parkingSpots } = req.body;
+      const { name, requiresUpfrontPayment, supervisorId, parkingSpots, parkingFee } = req.body;
 
       // Check if venue already exists
       const existingVenue = await Venue.findOne({ name: new RegExp(`^${name}$`, 'i') });
@@ -404,7 +404,8 @@ router.post('/venues',
         name,
         requiresUpfrontPayment,
         supervisor: requiresUpfrontPayment ? supervisorId : null,
-        parkingSpots: parkingSpots && Array.isArray(parkingSpots) ? parkingSpots.filter(spot => spot.trim() !== '') : []
+        parkingSpots: parkingSpots && Array.isArray(parkingSpots) ? parkingSpots.filter(spot => spot.trim() !== '') : [],
+        parkingFee: parkingFee !== undefined ? parseFloat(parkingFee) : 150
       });
 
       await venue.save();
@@ -435,7 +436,11 @@ router.put('/venues/:id', auth, authorize('admin'), async (req, res) => {
     if (typeof requiresUpfrontPayment !== 'undefined') {
       venue.requiresUpfrontPayment = requiresUpfrontPayment;
     }
-    
+
+    if (parkingFee !== undefined && parkingFee !== null && parkingFee !== '') {
+      venue.parkingFee = parseFloat(parkingFee);
+    }
+
     if (requiresUpfrontPayment && supervisorId) {
       const supervisor = await User.findById(supervisorId);
       if (!supervisor || supervisor.role !== 'supervisor') {
@@ -608,38 +613,141 @@ router.get('/customer-rides', auth, authorize('admin', 'manager'), async (req, r
   }
 });
 
-// ===== NEW: REVENUE STATS (Admin, Manager) =====
+// ===== ENHANCED: REVENUE & TRANSACTION STATS (Admin, Manager) =====
 router.get('/revenue-stats', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const now = new Date();
     const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
     const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
     const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+    const last30Start = new Date(now); last30Start.setDate(now.getDate() - 29); last30Start.setHours(0, 0, 0, 0);
 
     const [todayRev, weekRev, monthRev, totalRev] = await Promise.all([
       Booking.aggregate([
-        { $match: { status: 'completed', createdAt: { $gte: todayStart }, 'payment.amount': { $gt: 0 } } },
+        { $match: { 'payment.status': 'completed', createdAt: { $gte: todayStart }, 'payment.amount': { $gt: 0 } } },
         { $group: { _id: null, total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
       ]),
       Booking.aggregate([
-        { $match: { status: 'completed', createdAt: { $gte: weekStart }, 'payment.amount': { $gt: 0 } } },
+        { $match: { 'payment.status': 'completed', createdAt: { $gte: weekStart }, 'payment.amount': { $gt: 0 } } },
         { $group: { _id: null, total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
       ]),
       Booking.aggregate([
-        { $match: { status: 'completed', createdAt: { $gte: monthStart }, 'payment.amount': { $gt: 0 } } },
+        { $match: { 'payment.status': 'completed', createdAt: { $gte: monthStart }, 'payment.amount': { $gt: 0 } } },
         { $group: { _id: null, total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
       ]),
       Booking.aggregate([
-        { $match: { status: 'completed', 'payment.amount': { $gt: 0 } } },
+        { $match: { 'payment.status': 'completed', 'payment.amount': { $gt: 0 } } },
         { $group: { _id: null, total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
       ])
     ]);
 
     // Payment method breakdown (all time)
     const paymentBreakdown = await Booking.aggregate([
-      { $match: { status: 'completed' } },
+      { $match: { 'payment.status': 'completed' } },
       { $group: { _id: '$payment.method', total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
     ]);
+
+    // Payment status counts (successful / failed / pending)
+    const paymentStatusCounts = await Booking.aggregate([
+      { $group: { _id: '$payment.status', count: { $sum: 1 }, total: { $sum: '$payment.amount' } } }
+    ]);
+    const statusMap = {};
+    paymentStatusCounts.forEach(s => { statusMap[s._id || 'pending'] = { count: s.count, total: s.total }; });
+
+    // Day-wise breakdown for last 30 days
+    const dailyData = await Booking.aggregate([
+      {
+        $match: {
+          'payment.status': 'completed',
+          'payment.amount': { $gt: 0 },
+          createdAt: { $gte: last30Start }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' }
+          },
+          amount: { $sum: '$payment.amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
+    ]);
+
+    // Build a full 30-day array (fill gaps with 0)
+    const dailyMap = {};
+    dailyData.forEach(d => {
+      const dateStr = `${d._id.year}-${String(d._id.month).padStart(2,'0')}-${String(d._id.day).padStart(2,'0')}`;
+      dailyMap[dateStr] = { amount: d.amount, count: d.count };
+    });
+
+    const dailyBreakdown = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const key = d.toISOString().split('T')[0];
+      dailyBreakdown.push({
+        date: key,
+        label: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+        amount: dailyMap[key]?.amount || 0,
+        count: dailyMap[key]?.count || 0
+      });
+    }
+
+    // Weekly grouping (last 12 weeks)
+    const weeklyData = await Booking.aggregate([
+      {
+        $match: {
+          'payment.status': 'completed',
+          'payment.amount': { $gt: 0 },
+          createdAt: { $gte: new Date(now.getTime() - 84 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: { week: { $week: '$createdAt' }, year: { $year: '$createdAt' } },
+          amount: { $sum: '$payment.amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.week': 1 } }
+    ]);
+
+    // Monthly grouping (last 12 months)
+    const monthlyData = await Booking.aggregate([
+      {
+        $match: {
+          'payment.status': 'completed',
+          'payment.amount': { $gt: 0 },
+          createdAt: { $gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) }
+        }
+      },
+      {
+        $group: {
+          _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+          amount: { $sum: '$payment.amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]);
+
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthlyBreakdown = monthlyData.map(m => ({
+      label: `${monthNames[m._id.month - 1]} ${m._id.year}`,
+      amount: m.amount,
+      count: m.count
+    }));
+
+    const weeklyBreakdown = weeklyData.map(w => ({
+      label: `Wk ${w._id.week}`,
+      amount: w.amount,
+      count: w.count
+    }));
 
     res.json({
       today:   { amount: todayRev[0]?.total || 0,  count: todayRev[0]?.count || 0 },
@@ -649,7 +757,15 @@ router.get('/revenue-stats', auth, authorize('admin', 'manager'), async (req, re
       paymentBreakdown: paymentBreakdown.reduce((acc, item) => {
         acc[item._id || 'unknown'] = { amount: item.total, count: item.count };
         return acc;
-      }, {})
+      }, {}),
+      paymentStatus: {
+        successful: statusMap['completed'] || { count: 0, total: 0 },
+        failed:     statusMap['failed']    || { count: 0, total: 0 },
+        pending:    statusMap['pending']   || { count: 0, total: 0 }
+      },
+      dailyBreakdown,
+      weeklyBreakdown,
+      monthlyBreakdown
     });
   } catch (error) {
     console.error('Revenue stats error:', error);

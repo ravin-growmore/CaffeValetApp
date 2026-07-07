@@ -361,14 +361,14 @@ router.put('/:id', auth, authorize('driver'), upload.array('carImages', 4), asyn
 
     await booking.save();
     await booking.populate('driver', 'name phone');
-
-    console.log('Booking updated by driver:', booking.bookingId);
-    res.json({ message: 'Booking updated successfully', booking });
-  } catch (error) {
-    console.error('Update booking error:', error);
-    res.status(500).json({ message: 'Failed to update booking', error: error.message });
+      console.log('Booking updated by driver:', booking.bookingId);
+      res.json({ message: 'Booking updated successfully', booking });
+    } catch (error) {
+      console.error('Update booking error:', error);
+      res.status(500).json({ message: 'Failed to update booking', error: error.message });
+    }
   }
-});
+);
 
 // ===== PUBLIC: Customer Self-Booking via Driver QR =====
 // POST /bookings/public  — no auth required, driver identified by phone
@@ -387,7 +387,30 @@ router.post('/public',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { driverPhone, customerPhone, customerName, customerEmail, vehicleNumber, notes, hasValuables, valuables } = req.body;
+      const {
+        driverPhone, customerPhone, customerName, customerEmail,
+        vehicleNumber, notes, hasValuables, valuables,
+        razorpayOrderId, razorpayPaymentId, razorpaySignature, paymentAmount
+      } = req.body;
+
+      // ===== Razorpay Payment Verification =====
+      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+        return res.status(402).json({ message: 'Payment is required before creating a booking.' });
+      }
+
+      const crypto = require('crypto');
+      const secret = process.env.RAZORPAY_KEY_SECRET || 'YOUR_KEY_SECRET_HERE';
+      const expectedSig = crypto
+        .createHmac('sha256', secret)
+        .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+        .digest('hex');
+
+      if (expectedSig !== razorpaySignature) {
+        console.error('Public booking: Razorpay signature mismatch');
+        return res.status(400).json({ message: 'Payment verification failed. Please retry payment.' });
+      }
+
+      console.log('✓ Razorpay payment verified for public booking. PaymentId:', razorpayPaymentId);
 
       // Find driver by phone
       const driver = await User.findOne({ phone: driverPhone, role: 'driver' });
@@ -408,6 +431,8 @@ router.post('/public',
         imageUrls = await uploadMultipleFiles(req.files);
       }
 
+      const parsedAmount = paymentAmount ? parseFloat(paymentAmount) : 150;
+
       const booking = new Booking({
         driver: driver._id,
         customer: {
@@ -424,8 +449,18 @@ router.post('/public',
         },
         location: { venue: '', parkingSpot: '' },
         notes: notes || '',
-        payment: { method: 'pending', amount: 0 },
-        paymentStatus: 'unpaid',
+        payment: {
+          method: 'razorpay',
+          amount: parsedAmount,
+          status: 'completed',
+          paidAt: new Date(),
+          razorpay: {
+            orderId: razorpayOrderId,
+            paymentId: razorpayPaymentId,
+            signature: razorpaySignature
+          }
+        },
+        paymentStatus: 'paid',
         status: 'parked'
       });
 
@@ -460,7 +495,7 @@ router.post('/public',
         });
       }
 
-      console.log('Public booking created for driver:', driver.phone, 'Booking:', booking.bookingId);
+      console.log('Public booking created for driver:', driver.phone, 'Booking:', booking.bookingId, '| Razorpay:', razorpayPaymentId);
       res.status(201).json({ message: 'Booking created successfully', booking, accessLink });
     } catch (error) {
       console.error('Public booking error:', error);

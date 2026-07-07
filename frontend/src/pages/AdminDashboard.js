@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
   BarChart3, Shield, Car, MapPin, LogOut,
-  Radio, Users, FileText, TrendingUp
+  Radio, Users, FileText, TrendingUp, CreditCard
 } from 'lucide-react';
 import api from '../services/api';
 import './AdminDashboard.css';
@@ -18,6 +18,7 @@ import AdminLiveRides from '../components/admin/AdminLiveRides';
 import AdminCustomerRides from '../components/admin/AdminCustomerRides';
 import AdminAllBookings from '../components/admin/AdminAllBookings';
 import ManageManagers from '../components/admin/ManageManagers';
+import AdminTransactions from '../components/admin/AdminTransactions';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -34,9 +35,10 @@ const AdminDashboard = () => {
     {
       section: 'Live Monitoring',
       items: [
-        { id: 'live',       label: 'Live Rides',      icon: Radio,      path: '/admin/live',      badge: 'LIVE', badgeClass: 'live-badge' },
-        { id: 'customers',  label: 'Customer Rides',  icon: Users,      path: '/admin/customers' },
-        { id: 'allbookings',label: 'All Bookings',    icon: FileText,   path: '/admin/allbookings' },
+        { id: 'live',         label: 'Live Rides',       icon: Radio,        path: '/admin/live',          badge: 'LIVE', badgeClass: 'live-badge' },
+        { id: 'customers',    label: 'Customer Rides',   icon: Users,        path: '/admin/customers' },
+        { id: 'allbookings',  label: 'All Bookings',     icon: FileText,     path: '/admin/allbookings' },
+        { id: 'transactions', label: 'Transactions',     icon: CreditCard,   path: '/admin/transactions' },
       ]
     },
     {
@@ -115,15 +117,16 @@ const AdminDashboard = () => {
         {/* Main Content */}
         <main className="admin-main">
           <Routes>
-            <Route path="stats"       element={<AdminStats />} />
-            <Route path="live"        element={<AdminLiveRides />} />
-            <Route path="customers"   element={<AdminCustomerRides />} />
-            <Route path="allbookings" element={<AdminAllBookings />} />
-            <Route path="managers"    element={<ManageManagers />} />
-            <Route path="supervisors" element={<ManageSupervisors />} />
-            <Route path="drivers"     element={<ManageDrivers />} />
-            <Route path="venues"      element={<ManageVenues />} />
-            <Route path="/"           element={<AdminStats />} />
+            <Route path="stats"        element={<AdminStats />} />
+            <Route path="live"         element={<AdminLiveRides />} />
+            <Route path="customers"    element={<AdminCustomerRides />} />
+            <Route path="allbookings"  element={<AdminAllBookings />} />
+            <Route path="transactions" element={<AdminTransactions />} />
+            <Route path="managers"     element={<ManageManagers />} />
+            <Route path="supervisors"  element={<ManageSupervisors />} />
+            <Route path="drivers"      element={<ManageDrivers />} />
+            <Route path="venues"       element={<ManageVenues />} />
+            <Route path="/"            element={<AdminStats />} />
           </Routes>
         </main>
       </div>

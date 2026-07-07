@@ -1,14 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { useParams } from 'react-router-dom';
-import { Car, FileText, CheckCircle, User } from 'lucide-react';
+import { Car, FileText, CheckCircle, User, CreditCard, ShieldCheck, AlertCircle, RefreshCw, IndianRupee } from 'lucide-react';
 import axios from 'axios';
 import './CustomerBookingForm.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
+const RAZORPAY_KEY = process.env.REACT_APP_RAZORPAY_KEY_ID || 'rzp_test_YOUR_KEY_ID_HERE';
 
 const valuableOptions = ['Laptop', 'Phone', 'Wallet', 'Gift', 'Snacks', 'Charger', 'HeadPhone'];
+
+/* ─── Load Razorpay SDK once ─────────────────────────────── */
+const loadRazorpaySDK = () =>
+  new Promise((resolve) => {
+    if (window.Razorpay) { resolve(true); return; }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 
 const CustomerBookingForm = () => {
   const { driverPhone } = useParams();
@@ -29,16 +41,30 @@ const CustomerBookingForm = () => {
   const [driverName, setDriverName] = useState('');
   const [driverNotFound, setDriverNotFound] = useState(false);
 
-  // Fetch driver name to verify the QR is valid
+  const [paymentAmount, setPaymentAmount] = useState(150);
+  const [paymentState, setPaymentState] = useState('idle'); // idle | paying | success | failed
+  const [paymentData, setPaymentData] = useState(null); // { orderId, paymentId, signature }
+  const [venueName, setVenueName] = useState('');
+  const [venueLoading, setVenueLoading] = useState(true);
+
+  // Fetch driver name + venue parking fee to verify the QR is valid
   useEffect(() => {
     if (!driverPhone) { setDriverNotFound(true); return; }
     const verify = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/auth/driver-info/${driverPhone}`);
         setDriverName(res.data.name || 'Your Valet Driver');
+        if (res.data.parkingFee !== undefined) {
+          setPaymentAmount(res.data.parkingFee);
+        }
+        if (res.data.venueName) {
+          setVenueName(res.data.venueName);
+        }
       } catch {
         // If endpoint doesn't exist we just don't show the name - not a blocker
         setDriverName('Your Valet Driver');
+      } finally {
+        setVenueLoading(false);
       }
     };
     verify();
@@ -73,6 +99,97 @@ const CustomerBookingForm = () => {
 
   const removeImage = (i) => setCarImages(carImages.filter((_, idx) => idx !== i));
 
+  /* ─── Razorpay Payment ──────────────────────────────────── */
+  const handlePayment = useCallback(async () => {
+    if (!formData.customerName.trim()) { toast.error('Please enter your name first'); return; }
+    if (!/^[0-9]{10}$/.test(formData.customerPhone.trim())) {
+      toast.error('Please enter a valid 10-digit mobile number first'); return;
+    }
+    if (paymentAmount <= 0) { toast.error('Invalid payment amount'); return; }
+
+    setPaymentState('paying');
+
+    const sdkLoaded = await loadRazorpaySDK();
+    if (!sdkLoaded) {
+      toast.error('Failed to load payment gateway. Check your internet connection.');
+      setPaymentState('failed');
+      return;
+    }
+
+    try {
+      // Create Razorpay order on backend
+      const { data } = await axios.post(`${API_URL}/api/payment/create-order`, {
+        amount: paymentAmount,
+        notes: { customerName: formData.customerName, customerPhone: formData.customerPhone }
+      });
+
+      const options = {
+        key: RAZORPAY_KEY,
+        amount: data.amount,
+        currency: data.currency,
+        name: 'GrowMore Valet',
+        description: 'Valet Parking Payment',
+        order_id: data.orderId,
+        prefill: {
+          name: formData.customerName,
+          contact: formData.customerPhone,
+          email: formData.customerEmail || undefined
+        },
+        theme: { color: '#FF6B35' },
+        handler: async (response) => {
+          try {
+            // Verify signature on backend
+            const verify = await axios.post(`${API_URL}/api/payment/verify`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+
+            if (verify.data.success) {
+              setPaymentData({
+                orderId: response.razorpay_order_id,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature
+              });
+              setPaymentState('success');
+              toast.success('Payment successful! ✓');
+            } else {
+              setPaymentState('failed');
+              toast.error('Payment verification failed. Please retry.');
+            }
+          } catch {
+            setPaymentState('failed');
+            toast.error('Payment verification error. Please retry.');
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            if (paymentState !== 'success') {
+              setPaymentState('failed');
+              toast.error('Payment cancelled. Please retry to create your booking.');
+            }
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', () => {
+        setPaymentState('failed');
+        toast.error('Payment failed. Please retry.');
+      });
+      rzp.open();
+    } catch (err) {
+      setPaymentState('failed');
+      toast.error(err.response?.data?.message || 'Failed to initiate payment. Please try again.');
+    }
+  }, [formData, paymentAmount, paymentState]);
+
+  const handleRetryPayment = () => {
+    setPaymentState('idle');
+    setPaymentData(null);
+  };
+
+  /* ─── Form Submit ───────────────────────────────────────── */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -82,6 +199,9 @@ const CustomerBookingForm = () => {
     }
     if (formData.vehicleNumber.trim().length < 4) {
       toast.error('Vehicle number must be at least 4 characters'); return;
+    }
+    if (paymentState !== 'success' || !paymentData) {
+      toast.error('Please complete payment before creating a booking'); return;
     }
 
     setLoading(true);
@@ -95,6 +215,10 @@ const CustomerBookingForm = () => {
       data.append('notes', formData.notes);
       data.append('hasValuables', formData.hasValuables);
       data.append('valuables', JSON.stringify(formData.valuables));
+      data.append('razorpayOrderId', paymentData.orderId);
+      data.append('razorpayPaymentId', paymentData.paymentId);
+      data.append('razorpaySignature', paymentData.signature);
+      data.append('paymentAmount', paymentAmount);
       carImages.forEach(f => data.append('carImages', f));
 
       const res = await axios.post(`${API_URL}/api/bookings/public`, data, {
@@ -111,6 +235,7 @@ const CustomerBookingForm = () => {
     }
   };
 
+  /* ─── Screens ───────────────────────────────────────────── */
   if (driverNotFound) {
     return (
       <div className="cbf-page">
@@ -141,6 +266,10 @@ const CustomerBookingForm = () => {
             <span>Booking ID</span>
             <strong>{createdBookingId}</strong>
           </div>
+          <div className="cbf-payment-success-badge">
+            <ShieldCheck size={16} color="#10B981" />
+            <span>Payment of ₹{paymentAmount} confirmed • {paymentData?.paymentId}</span>
+          </div>
           <p className="cbf-track-hint">
             You will receive an SMS with a tracking link to monitor your car status in real time.
           </p>
@@ -149,6 +278,7 @@ const CustomerBookingForm = () => {
     );
   }
 
+  /* ─── Main Form ─────────────────────────────────────────── */
   return (
     <div className="cbf-page">
       <Toaster position="top-center" />
@@ -345,9 +475,119 @@ const CustomerBookingForm = () => {
             </div>
           </div>
 
-          <button type="submit" className="cbf-submit" disabled={loading}>
+          {/* ═══════════════ PAYMENT SECTION ══════════════════ */}
+          <div className="cbf-section cbf-payment-section">
+            <div className="cbf-section-title">
+              <CreditCard size={18} /> Payment
+            </div>
+
+            {/* Venue Fee Display (read-only) */}
+            <div className="cbf-venue-fee-row">
+              <div className="cbf-venue-fee-info">
+                <span className="cbf-venue-fee-label">
+                  {venueName ? `Parking charge at ${venueName}` : 'Valet Parking Charge'}
+                </span>
+                {venueLoading ? (
+                  <span className="cbf-fee-loading">Loading fee…</span>
+                ) : (
+                  <span className="cbf-venue-fee-amount">₹{paymentAmount}</span>
+                )}
+              </div>
+              <div className="cbf-fee-badge">Admin set</div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {/* ── IDLE: Show Pay Button ── */}
+              {paymentState === 'idle' && (
+                <motion.button
+                  key="pay-btn"
+                  type="button"
+                  className="cbf-pay-btn"
+                  onClick={handlePayment}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <CreditCard size={20} />
+                  Pay ₹{paymentAmount} with Razorpay
+                </motion.button>
+              )}
+
+              {/* ── PAYING: Spinner ── */}
+              {paymentState === 'paying' && (
+                <motion.div
+                  key="paying"
+                  className="cbf-payment-status paying"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <div className="cbf-spinner-ring" />
+                  <span>Opening payment gateway…</span>
+                </motion.div>
+              )}
+
+              {/* ── SUCCESS ── */}
+              {paymentState === 'success' && (
+                <motion.div
+                  key="success"
+                  className="cbf-payment-status success"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <ShieldCheck size={22} color="#10B981" />
+                  <div>
+                    <span className="cbf-ps-title">Payment Successful ✓</span>
+                    <span className="cbf-ps-sub">₹{paymentAmount} paid • ID: {paymentData?.paymentId?.slice(-8)}</span>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ── FAILED ── */}
+              {paymentState === 'failed' && (
+                <motion.div
+                  key="failed"
+                  className="cbf-payment-failed-wrap"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <div className="cbf-payment-status failed">
+                    <AlertCircle size={22} color="#EF4444" />
+                    <span className="cbf-ps-title">Payment Failed or Cancelled</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="cbf-retry-btn"
+                    onClick={handleRetryPayment}
+                  >
+                    <RefreshCw size={16} />
+                    Retry Payment
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {paymentState !== 'success' && (
+              <p className="cbf-payment-note">
+                🔒 Secure payment powered by Razorpay. Pay first to confirm your booking slot.
+              </p>
+            )}
+          </div>
+
+          {/* Submit — only active after payment success */}
+          <button
+            type="submit"
+            className={`cbf-submit ${paymentState !== 'success' ? 'cbf-submit-locked' : ''}`}
+            disabled={loading || paymentState !== 'success'}
+          >
             {loading ? (
               <span className="cbf-spinner">Creating Booking...</span>
+            ) : paymentState !== 'success' ? (
+              <>🔒 Complete Payment to Book</>
             ) : (
               <>🚗 Create Booking</>
             )}

@@ -16,7 +16,8 @@ const ManageVenues = () => {
     requiresUpfrontPayment: false,
     supervisorId: '',
     isActive: true,
-    parkingSpots: []
+    parkingSpots: [],
+    parkingFee: 150
   });
   const [newParkingSpot, setNewParkingSpot] = useState('');
 
@@ -69,7 +70,8 @@ const ManageVenues = () => {
       requiresUpfrontPayment: venue.requiresUpfrontPayment,
       supervisorId: venue.supervisor?._id || '',
       isActive: venue.isActive,
-      parkingSpots: venue.parkingSpots || []
+      parkingSpots: venue.parkingSpots || [],
+      parkingFee: venue.parkingFee ?? 150
     });
     setShowForm(true);
   };
@@ -87,7 +89,7 @@ const ManageVenues = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', requiresUpfrontPayment: false, supervisorId: '', isActive: true, parkingSpots: [] });
+    setFormData({ name: '', requiresUpfrontPayment: false, supervisorId: '', isActive: true, parkingSpots: [], parkingFee: 150 });
     setNewParkingSpot('');
     setEditingId(null);
     setShowForm(false);
@@ -147,6 +149,23 @@ const ManageVenues = () => {
                   required
                   placeholder="e.g., Infinity Mall"
                 />
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <DollarSign size={15} color="#FF6B35" /> Parking Fee (₹)
+                </label>
+                <input
+                  type="number"
+                  value={formData.parkingFee}
+                  onChange={(e) => setFormData({...formData, parkingFee: parseFloat(e.target.value) || 0})}
+                  min="0"
+                  step="10"
+                  placeholder="e.g., 150"
+                  style={{ fontWeight: '700', fontSize: '16px' }}
+                />
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                  Amount the customer pays at booking via Razorpay
+                </p>
               </div>
             </div>
             
@@ -286,6 +305,7 @@ const ManageVenues = () => {
           <thead>
             <tr>
               <th>Venue Name</th>
+              <th>Parking Fee</th>
               <th>Payment</th>
               <th>Supervisor</th>
               <th>Status</th>
@@ -301,6 +321,12 @@ const ManageVenues = () => {
                     <MapPin size={18} color="#FF6B35" />
                     <span>{venue.name}</span>
                   </div>
+                </td>
+                <td>
+                  <span style={{ fontWeight: '800', fontSize: '16px', color: '#1A1A2E' }}>
+                    ₹{venue.parkingFee ?? 150}
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#9CA3AF', marginLeft: '4px' }}>per visit</span>
                 </td>
                 <td>
                   {venue.requiresUpfrontPayment ? (

@@ -243,4 +243,28 @@ router.get('/me', require('../middleware/auth').auth, async (req, res) => {
   });
 });
 
+// Get driver info by phone (public — used by QR booking form)
+// Returns driver name + venue parkingFee so form can pre-fill amount
+router.get('/driver-info/:phone', async (req, res) => {
+  try {
+    const Venue = require('../models/Venue');
+    const driver = await User.findOne({ phone: req.params.phone, role: 'driver', isActive: true })
+      .populate('venue', 'name parkingFee requiresUpfrontPayment');
+
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+
+    res.json({
+      name: driver.name,
+      parkingFee: driver.venue?.parkingFee ?? 150,
+      venueName: driver.venue?.name || null,
+      requiresUpfrontPayment: driver.venue?.requiresUpfrontPayment ?? true
+    });
+  } catch (error) {
+    console.error('Driver info error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

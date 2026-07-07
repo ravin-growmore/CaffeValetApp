@@ -87,7 +87,7 @@ const bookingSchema = new mongoose.Schema({
   payment: {
     method: {
       type: String,
-      enum: ['cash', 'qr', 'upi', 'card', 'staff', 'foc', 'pending'],
+      enum: ['cash', 'qr', 'upi', 'card', 'staff', 'foc', 'pending', 'razorpay'],
       default: 'pending'
     },
     amount: Number,
@@ -96,7 +96,12 @@ const bookingSchema = new mongoose.Schema({
       enum: ['pending', 'completed', 'failed'],
       default: 'pending'
     },
-    paidAt: Date
+    paidAt: Date,
+    razorpay: {
+      orderId: String,
+      paymentId: String,
+      signature: String
+    }
   },
   paymentStatus: {
     type: String,

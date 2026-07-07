@@ -89,6 +89,7 @@ app.use("/api/bookings", require("./routes/bookings"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/venues", require("./routes/venues"));
+app.use("/api/payment", require("./routes/payment"));
 
 // ✅ Serve uploaded images
 const { UPLOAD_PATH } = require("./config/imageUpload");
