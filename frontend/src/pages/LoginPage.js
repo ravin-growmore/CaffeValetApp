@@ -91,14 +91,6 @@ const LoginPage = () => {
                 <Shield size={18} />
                 Supervisor
               </button>
-              <button
-                type="button"
-                className={`role-btn ${formData.role === 'manager' ? 'active' : ''}`}
-                onClick={() => setFormData({ ...formData, role: 'manager' })}
-              >
-                <Shield size={18} />
-                Manager
-              </button>
             </div>
           </div>
 
