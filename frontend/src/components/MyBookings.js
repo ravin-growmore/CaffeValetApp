@@ -8,6 +8,45 @@ import './MyBookings.css';
 const valuableOptions = ['Laptop', 'Phone', 'Wallet', 'Gift', 'Snacks', 'Charger', 'HeadPhone'];
 
 /* ============================================================
+   HELPERS FOR RECENT DRIVER NAMES
+   ============================================================ */
+const getDriverSuggestions = () => {
+  const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const loggedInName = loggedInUser.name || '';
+  
+  const suggestions = loggedInName ? [loggedInName] : [];
+  const seeds = ['Andheri Driver 1', 'Andheri Driver 2', 'Andheri Supervisor'];
+  
+  try {
+    const recents = JSON.parse(localStorage.getItem('recent_drivers') || '[]');
+    recents.forEach(name => {
+      if (!suggestions.includes(name)) {
+        suggestions.push(name);
+      }
+    });
+  } catch (e) {}
+
+  seeds.forEach(name => {
+    if (!suggestions.includes(name)) {
+      suggestions.push(name);
+    }
+  });
+
+  return suggestions;
+};
+
+const saveRecentDriver = (name) => {
+  if (!name || name.trim() === '') return;
+  try {
+    const recents = JSON.parse(localStorage.getItem('recent_drivers') || '[]');
+    if (!recents.includes(name.trim())) {
+      const updated = [name.trim(), ...recents].slice(0, 10);
+      localStorage.setItem('recent_drivers', JSON.stringify(updated));
+    }
+  } catch (e) {}
+};
+
+/* ============================================================
    EDIT MODAL
    ============================================================ */
 const EditBookingModal = ({ booking, onClose, onSaved }) => {
@@ -17,6 +56,7 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
     notes:         booking.notes           || '',
     hasValuables:  booking.vehicle?.hasValuables || false,
     valuables:     booking.vehicle?.valuables    || [],
+    driverName:    booking.vehicle?.driverName   || '',
   });
   const [newImages, setNewImages]   = useState([]);
   const [saving,   setSaving]       = useState(false);
@@ -26,8 +66,16 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const toggleValuables = () =>
-    setForm({ ...form, hasValuables: !form.hasValuables, valuables: !form.hasValuables ? form.valuables : [] });
+  const toggleValuables = () => {
+    const nextVal = !form.hasValuables;
+    const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
+    setForm({ 
+      ...form, 
+      hasValuables: nextVal, 
+      valuables: nextVal ? form.valuables : [],
+      driverName: nextVal ? (form.driverName || loggedInUser.name || '') : ''
+    });
+  };
 
   const toggleItem = (v) => {
     const updated = form.valuables.includes(v)
@@ -52,11 +100,13 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
       data.append('notes',         form.notes);
       data.append('hasValuables',  form.hasValuables);
       data.append('valuables',     JSON.stringify(form.valuables));
+      data.append('driverName',    form.driverName.trim());
       newImages.forEach(f => data.append('carImages', f));
 
       const res = await api.put(`/bookings/${booking._id}`, data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      saveRecentDriver(form.driverName.trim());
       toast.success('Booking updated!');
       onSaved(res.data.booking);
       onClose();
@@ -132,21 +182,41 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
             </div>
 
             {form.hasValuables && (
-              <div className="edit-chips-wrap">
-                <p className="edit-chips-label">Select items:</p>
-                <div className="edit-chips">
-                  {valuableOptions.map(v => (
-                    <button
-                      key={v}
-                      type="button"
-                      className={`edit-chip ${form.valuables.includes(v) ? 'selected' : ''}`}
-                      onClick={() => toggleItem(v)}
-                    >
-                      {v}
-                    </button>
-                  ))}
+              <>
+                <div className="edit-chips-wrap">
+                  <p className="edit-chips-label">Select items:</p>
+                  <div className="edit-chips">
+                    {valuableOptions.map(v => (
+                      <button
+                        key={v}
+                        type="button"
+                        className={`edit-chip ${form.valuables.includes(v) ? 'selected' : ''}`}
+                        onClick={() => toggleItem(v)}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+
+                <div className="edit-field" style={{ marginTop: '12px' }}>
+                  <label>Driver Name (Who collected the car)</label>
+                  <input
+                    type="text"
+                    name="driverName"
+                    value={form.driverName}
+                    onChange={handleChange}
+                    placeholder="Enter driver name"
+                    list="driver-names-list"
+                    autoComplete="off"
+                  />
+                  <datalist id="driver-names-list">
+                    {getDriverSuggestions().map(name => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
+                </div>
+              </>
             )}
 
             {/* Images */}
@@ -443,6 +513,15 @@ const MyBookings = () => {
                               <span className="valuables-tag">
                                 Valuables: {booking.vehicle.valuables.join(', ')}
                               </span>
+                            </div>
+                          )}
+
+                          {booking.vehicle?.driverName && (
+                            <div className="detail-row" style={{ marginTop: '4px' }}>
+                              <User size={18} color="#FF6B35" />
+                              <div style={{ fontSize: '13px', color: '#10B981', fontWeight: 600 }}>
+                                Handled by: {booking.vehicle.driverName}
+                              </div>
                             </div>
                           )}
                         </div>

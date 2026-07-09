@@ -49,7 +49,11 @@ const bookingSchema = new mongoose.Schema({
     },
     valuables: [{
       type: String
-    }]
+    }],
+    driverName: {
+      type: String,
+      required: false
+    }
   },
   parking: {
     startTime: {

@@ -324,7 +324,7 @@ router.put('/:id', auth, authorize('driver'), upload.array('carImages', 4), asyn
     const {
       customerName, vehicleNumber,
       notes, hasValuables, valuables,
-      payment, paymentStatus
+      payment, paymentStatus, driverName
     } = req.body;
 
     // Customer info
@@ -343,6 +343,9 @@ router.put('/:id', auth, authorize('driver'), upload.array('carImages', 4), asyn
       } catch (e) {
         booking.vehicle.valuables = Array.isArray(valuables) ? valuables : [];
       }
+    }
+    if (driverName !== undefined) {
+      booking.vehicle.driverName = driverName;
     }
 
     // New images (append to existing)
