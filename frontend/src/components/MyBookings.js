@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { Car, Clock, Phone, MapPin, AlertCircle, Pencil, X, Check } from 'lucide-react';
+import { Car, Clock, Phone, MapPin, AlertCircle, Pencil, X, Check, User } from 'lucide-react';
 import api from '../services/api';
 import './MyBookings.css';
 
