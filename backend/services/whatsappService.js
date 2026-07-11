@@ -129,9 +129,13 @@ class WhatsAppService {
               {
                 type: 'body',
                 parameters: [{ type: 'text', text: String(otp) }]
+              },
+              {
+                type: 'button',
+                sub_type: 'url',
+                index: '0',
+                parameters: [{ type: 'text', text: String(otp) }]
               }
-              // Note: Copy Code button is part of the AUTHENTICATION template
-              // itself — WhatsApp renders it automatically, no payload needed.
             ]
           }
         }]
@@ -245,9 +249,13 @@ class WhatsAppService {
               {
                 type: 'body',
                 parameters: [{ type: 'text', text: String(otp) }]
+              },
+              {
+                type: 'button',
+                sub_type: 'url',
+                index: '0',
+                parameters: [{ type: 'text', text: String(otp) }]
               }
-              // Note: Copy Code button is part of the AUTHENTICATION template
-              // itself — WhatsApp renders it automatically, no payload needed.
             ]
           }
         }]
