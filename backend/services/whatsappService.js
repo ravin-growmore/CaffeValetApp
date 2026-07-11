@@ -75,7 +75,7 @@ class WhatsAppService {
           kind: 'template',
           template: {
             name: templateName,
-            language: { code: 'en_US' },
+            language: 'en_US',
             components: variables.length > 0
               ? [{
                 type: 'body',
@@ -124,7 +124,7 @@ class WhatsAppService {
           kind: 'template',
           template: {
             name: 'cafe_quattro_otp_20260711184419',
-            language: { code: 'en_US' },
+            language: 'en_US',
             components: [
               {
                 type: 'body',
@@ -166,7 +166,7 @@ class WhatsAppService {
           kind: 'template',
           template: {
             name: 'cafe_quattro_booking_confirmation_20260711184852',
-            language: { code: 'en_US' },
+            language: 'en_US',
             components: [
               // Body: {{1}} = customerName, {{2}} = bookingId
               {
@@ -244,7 +244,7 @@ class WhatsAppService {
           kind: 'template',
           template: {
             name: 'cafe_quattro_handover_otp_20260711195215',
-            language: { code: 'en_US' },
+            language: 'en_US',
             components: [
               {
                 type: 'body',
