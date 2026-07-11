@@ -185,7 +185,7 @@ const CustomerDashboard = () => {
                     <Clock size={16} />
                     <span>Parked: {new Date(booking.parking?.startTime || booking.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
-                  {booking.location.venue && (
+                  {booking.location?.venue && (
                     <div className="detail-row">
                       <MapPin size={16} />
                       <span>{booking.location.venue}{booking.location.parkingSpot && ` · Spot ${booking.location.parkingSpot}`}</span>
