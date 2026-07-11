@@ -393,27 +393,32 @@ router.post('/public',
       const {
         driverPhone, customerPhone, customerName, customerEmail,
         vehicleNumber, notes, hasValuables, valuables,
-        razorpayOrderId, razorpayPaymentId, razorpaySignature, paymentAmount
+        razorpayOrderId, razorpayPaymentId, razorpaySignature, paymentAmount,
+        paymentMethod
       } = req.body;
 
-      // ===== Razorpay Payment Verification =====
-      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
-        return res.status(402).json({ message: 'Payment is required before creating a booking.' });
+      const isRazorpay = !paymentMethod || paymentMethod === 'razorpay';
+
+      // ===== Razorpay Payment Verification (if selected) =====
+      if (isRazorpay) {
+        if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+          return res.status(402).json({ message: 'Payment is required before creating a booking.' });
+        }
+
+        const crypto = require('crypto');
+        const secret = process.env.RAZORPAY_KEY_SECRET || 'YOUR_KEY_SECRET_HERE';
+        const expectedSig = crypto
+          .createHmac('sha256', secret)
+          .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+          .digest('hex');
+
+        if (expectedSig !== razorpaySignature) {
+          console.error('Public booking: Razorpay signature mismatch');
+          return res.status(400).json({ message: 'Payment verification failed. Please retry payment.' });
+        }
+
+        console.log('✓ Razorpay payment verified for public booking. PaymentId:', razorpayPaymentId);
       }
-
-      const crypto = require('crypto');
-      const secret = process.env.RAZORPAY_KEY_SECRET || 'YOUR_KEY_SECRET_HERE';
-      const expectedSig = crypto
-        .createHmac('sha256', secret)
-        .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-        .digest('hex');
-
-      if (expectedSig !== razorpaySignature) {
-        console.error('Public booking: Razorpay signature mismatch');
-        return res.status(400).json({ message: 'Payment verification failed. Please retry payment.' });
-      }
-
-      console.log('✓ Razorpay payment verified for public booking. PaymentId:', razorpayPaymentId);
 
       // Find driver by phone
       const driver = await User.findOne({ phone: driverPhone, role: 'driver' });
@@ -436,6 +441,22 @@ router.post('/public',
 
       const parsedAmount = paymentAmount ? parseFloat(paymentAmount) : 150;
 
+      const paymentObj = isRazorpay ? {
+        method: 'razorpay',
+        amount: parsedAmount,
+        status: 'completed',
+        paidAt: new Date(),
+        razorpay: {
+          orderId: razorpayOrderId,
+          paymentId: razorpayPaymentId,
+          signature: razorpaySignature
+        }
+      } : {
+        method: 'cash',
+        amount: parsedAmount,
+        status: 'pending'
+      };
+
       const booking = new Booking({
         driver: driver._id,
         customer: {
@@ -452,18 +473,8 @@ router.post('/public',
         },
         location: { venue: '', parkingSpot: '' },
         notes: notes || '',
-        payment: {
-          method: 'razorpay',
-          amount: parsedAmount,
-          status: 'completed',
-          paidAt: new Date(),
-          razorpay: {
-            orderId: razorpayOrderId,
-            paymentId: razorpayPaymentId,
-            signature: razorpaySignature
-          }
-        },
-        paymentStatus: 'paid',
+        payment: paymentObj,
+        paymentStatus: isRazorpay ? 'paid' : 'unpaid',
         status: 'parked'
       });
 
