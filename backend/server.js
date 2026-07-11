@@ -112,6 +112,31 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "growmore API is running ✅" });
 });
 
+// ✅ TEST WHATSAPP (ChatMitra)
+app.get("/api/test-whatsapp", async (req, res) => {
+  try {
+    const whatsappService = require("./services/whatsappService");
+    const phone = req.query.phone;
+    const otp = req.query.otp || '123456';
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide ?phone=9876543210",
+        enabled: whatsappService.enabled,
+        apiUrl: process.env.CHATMITRA_API_URL || 'NOT SET',
+        apiKeySet: !!process.env.CHATMITRA_API_KEY
+      });
+    }
+
+    const result = await whatsappService.sendOTP(phone, otp);
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error("Test WhatsApp Error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ✅ TEST EMAIL API (Brevo API mode)
 app.get("/api/test-email", async (req, res) => {
   try {
@@ -120,8 +145,7 @@ app.get("/api/test-email", async (req, res) => {
     if (!to) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please provide ?to=email@example.com OR set TEST_EMAIL_TO in env",
+        message: "Please provide ?to=email@example.com OR set TEST_EMAIL_TO in env",
       });
     }
 
