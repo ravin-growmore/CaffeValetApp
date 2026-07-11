@@ -537,7 +537,6 @@ const CustomerBookingForm = () => {
               <div className="cbf-fee-badge">Admin set</div>
             </div>
 
-            <AnimatePresence mode="wait">
             {/* Payment Method Selector */}
             <div className="cbf-field" style={{ marginTop: '16px', marginBottom: '16px' }}>
               <label>Select Payment Option</label>
