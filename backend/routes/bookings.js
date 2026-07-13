@@ -324,7 +324,8 @@ router.put('/:id', auth, authorize('driver'), upload.array('carImages', 4), asyn
     const {
       customerName, vehicleNumber,
       notes, hasValuables, valuables,
-      payment, paymentStatus, driverName
+      payment, paymentStatus, driverName,
+      complementary
     } = req.body;
 
     // Customer info
@@ -358,19 +359,31 @@ router.put('/:id', auth, authorize('driver'), upload.array('carImages', 4), asyn
     // Notes
     if (notes !== undefined) booking.notes = notes;
 
-    // Payment
-    if (payment) booking.payment = { ...booking.payment, ...payment };
-    if (paymentStatus) booking.paymentStatus = paymentStatus;
+    // Mark as Complementary (FOC — Free of Charge) — only valid for cash bookings
+    if (complementary === 'true' || complementary === true) {
+      booking.payment = {
+        ...booking.payment,
+        method: 'foc',
+        status: 'completed',
+        paidAt: new Date()
+      };
+      booking.paymentStatus = 'paid';
+      console.log(`Booking ${booking.bookingId} marked as complementary (FOC) by driver ${req.user.name}`);
+    } else {
+      // Payment
+      if (payment) booking.payment = { ...booking.payment, ...payment };
+      if (paymentStatus) booking.paymentStatus = paymentStatus;
+    }
 
     await booking.save();
     await booking.populate('driver', 'name phone');
-      console.log('Booking updated by driver:', booking.bookingId);
-      res.json({ message: 'Booking updated successfully', booking });
-    } catch (error) {
-      console.error('Update booking error:', error);
-      res.status(500).json({ message: 'Failed to update booking', error: error.message });
-    }
+    console.log('Booking updated by driver:', booking.bookingId);
+    res.json({ message: 'Booking updated successfully', booking });
+  } catch (error) {
+    console.error('Update booking error:', error);
+    res.status(500).json({ message: 'Failed to update booking', error: error.message });
   }
+}
 );
 
 // ===== PUBLIC: Customer Self-Booking via Driver QR =====
@@ -925,7 +938,7 @@ router.get('/stats/overview', auth, authorize('supervisor'), async (req, res) =>
             { $count: 'count' }
           ],
           revenue: [
-            { $match: { status: 'completed', 'payment.amount': { $exists: true } } },
+            { $match: { status: 'completed', 'payment.amount': { $exists: true }, 'payment.method': { $nin: ['foc', 'staff'] } } },
             { $group: { _id: null, total: { $sum: '$payment.amount' } } }
           ]
         }
@@ -981,17 +994,23 @@ router.get('/stats/daywise-revenue', auth, authorize('supervisor'), async (req, 
     const result = {
       cash: 0,
       upi: 0,
+      razorpay: 0,
       staff: 0,
       foc: 0,
       total: 0
     };
+
+    // Only add real payment methods to the total; foc/staff are excluded from revenue
+    const revenueMethodsForTotal = ['cash', 'qr', 'upi', 'card', 'razorpay'];
 
     revenue.forEach(item => {
       const method = item._id || 'cash';
       if (result.hasOwnProperty(method)) {
         result[method] = item.total;
       }
-      result.total += item.total;
+      if (revenueMethodsForTotal.includes(method)) {
+        result.total += item.total;
+      }
     });
 
     res.json(result);

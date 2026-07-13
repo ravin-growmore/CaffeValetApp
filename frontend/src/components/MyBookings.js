@@ -50,6 +50,8 @@ const saveRecentDriver = (name) => {
    EDIT MODAL
    ============================================================ */
 const EditBookingModal = ({ booking, onClose, onSaved }) => {
+  const isCashBooking = booking.payment?.method === 'cash';
+
   const [form, setForm] = useState({
     customerName:  booking.customer?.name  || '',
     vehicleNumber: booking.vehicle?.number || '',
@@ -57,6 +59,7 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
     hasValuables:  booking.vehicle?.hasValuables || false,
     valuables:     booking.vehicle?.valuables    || [],
     driverName:    booking.vehicle?.driverName   || '',
+    complementary: false,
   });
   const [newImages, setNewImages]   = useState([]);
   const [saving,   setSaving]       = useState(false);
@@ -68,12 +71,10 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
 
   const toggleValuables = () => {
     const nextVal = !form.hasValuables;
-    const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
     setForm({ 
       ...form, 
       hasValuables: nextVal, 
       valuables: nextVal ? form.valuables : [],
-      driverName: nextVal ? (form.driverName || loggedInUser.name || '') : ''
     });
   };
 
@@ -101,6 +102,7 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
       data.append('hasValuables',  form.hasValuables);
       data.append('valuables',     JSON.stringify(form.valuables));
       data.append('driverName',    form.driverName.trim());
+      if (form.complementary) data.append('complementary', 'true');
       newImages.forEach(f => data.append('carImages', f));
 
       const res = await api.put(`/bookings/${booking._id}`, data, {
@@ -182,41 +184,62 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
             </div>
 
             {form.hasValuables && (
-              <>
-                <div className="edit-chips-wrap">
-                  <p className="edit-chips-label">Select items:</p>
-                  <div className="edit-chips">
-                    {valuableOptions.map(v => (
-                      <button
-                        key={v}
-                        type="button"
-                        className={`edit-chip ${form.valuables.includes(v) ? 'selected' : ''}`}
-                        onClick={() => toggleItem(v)}
-                      >
-                        {v}
-                      </button>
-                    ))}
-                  </div>
+              <div className="edit-chips-wrap">
+                <p className="edit-chips-label">Select items:</p>
+                <div className="edit-chips">
+                  {valuableOptions.map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      className={`edit-chip ${form.valuables.includes(v) ? 'selected' : ''}`}
+                      onClick={() => toggleItem(v)}
+                    >
+                      {v}
+                    </button>
+                  ))}
                 </div>
+              </div>
+            )}
 
-                <div className="edit-field" style={{ marginTop: '12px' }}>
-                  <label>Driver Name (Who collected the car)</label>
-                  <input
-                    type="text"
-                    name="driverName"
-                    value={form.driverName}
-                    onChange={handleChange}
-                    placeholder="Enter driver name"
-                    list="driver-names-list"
-                    autoComplete="off"
-                  />
-                  <datalist id="driver-names-list">
-                    {getDriverSuggestions().map(name => (
-                      <option key={name} value={name} />
-                    ))}
-                  </datalist>
+            {/* Driver who collected — always visible */}
+            <div className="edit-field" style={{ marginTop: '12px' }}>
+              <label>Driver Name (Who collected the car)</label>
+              <input
+                type="text"
+                name="driverName"
+                value={form.driverName}
+                onChange={handleChange}
+                placeholder="Enter driver name"
+                list="driver-names-list"
+                autoComplete="off"
+              />
+              <datalist id="driver-names-list">
+                {getDriverSuggestions().map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+
+            {/* Complementary toggle — only for cash bookings */}
+            {isCashBooking && (
+              <div className="edit-toggle-row" style={{ marginTop: '12px', background: form.complementary ? '#F0FDF4' : '#FFFBEB', border: `1.5px solid ${form.complementary ? '#86EFAC' : '#FDE68A'}`, borderRadius: '10px', padding: '10px 14px' }}>
+                <div>
+                  <span style={{ fontWeight: 700, color: form.complementary ? '#15803D' : '#92400E' }}>
+                    {form.complementary ? '🎁 Marked as Complementary' : '🎁 Mark as Complementary?'}
+                  </span>
+                  <p style={{ fontSize: '11.5px', color: '#6B7280', margin: '2px 0 0' }}>
+                    Customer will not be charged for this booking.
+                  </p>
                 </div>
-              </>
+                <label className="cbf-toggle">
+                  <input
+                    type="checkbox"
+                    checked={form.complementary}
+                    onChange={() => setForm({ ...form, complementary: !form.complementary })}
+                  />
+                  <span className="cbf-toggle-slider" />
+                </label>
+              </div>
             )}
 
             {/* Images */}
