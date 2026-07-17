@@ -811,23 +811,20 @@ router.post('/:id/arrived', auth, authorize('driver'), async (req, res) => {
   }
 });
 
-// Driver: Verify OTP and Complete
+// Driver: Verify OTP and Complete (OTP OR customer phone number as fallback)
 router.post('/:id/verify-complete', auth, authorize('driver'), 
-  [
-    body('otp').isLength({ min: 6, max: 6 }).withMessage('Invalid OTP')
-  ],
   async (req, res) => {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
+      const { otp, customerPhone } = req.body;
 
-      const { otp } = req.body;
+      // Must provide either OTP or customer phone
+      if (!otp && !customerPhone) {
+        return res.status(400).json({ message: 'Please provide OTP or customer phone number' });
+      }
       
-      console.log('=== Verifying OTP and Completing Booking ===');
+      console.log('=== Verifying and Completing Booking ===');
       console.log('Booking ID:', req.params.id);
-      console.log('Received OTP:', otp);
+      console.log('Method:', otp ? 'OTP' : 'Customer Phone');
       
       const booking = await Booking.findById(req.params.id);
 
@@ -841,24 +838,34 @@ router.post('/:id/verify-complete', auth, authorize('driver'),
         return res.status(403).json({ message: 'Unauthorized' });
       }
 
-      // Verify OTP
-      console.log('Verifying OTP...');
-      console.log('Expected OTP:', booking.verification.otp);
-      console.log('Received OTP:', otp);
-      console.log('OTP Expiry:', booking.verification.otpExpiry);
-      console.log('Current Time:', new Date());
-      
-      if (booking.verification.otp !== otp) {
-        console.log('✗ Invalid OTP provided');
-        return res.status(401).json({ message: 'Invalid OTP' });
+      // ── Method 1: OTP verification ──
+      if (otp) {
+        if (otp.length !== 6) {
+          return res.status(400).json({ message: 'OTP must be 6 digits' });
+        }
+        console.log('Verifying OTP...');
+        if (booking.verification.otp !== otp) {
+          console.log('✗ Invalid OTP provided');
+          return res.status(401).json({ message: 'Invalid OTP' });
+        }
+        if (new Date() > booking.verification.otpExpiry) {
+          console.log('✗ OTP has expired');
+          return res.status(401).json({ message: 'OTP expired. Use customer phone number to complete instead.' });
+        }
+        console.log('✓ OTP verified successfully');
       }
 
-      if (new Date() > booking.verification.otpExpiry) {
-        console.log('✗ OTP has expired');
-        return res.status(401).json({ message: 'OTP expired' });
+      // ── Method 2: Customer phone verification ──
+      if (customerPhone && !otp) {
+        const clean = customerPhone.replace(/\D/g, '').slice(-10);
+        const bookingPhone = booking.customer.phone.replace(/\D/g, '').slice(-10);
+        console.log('Verifying customer phone:', clean, 'vs', bookingPhone);
+        if (clean !== bookingPhone) {
+          console.log('✗ Phone number mismatch');
+          return res.status(401).json({ message: 'Phone number does not match customer record' });
+        }
+        console.log('✓ Customer phone verified successfully');
       }
-
-      console.log('✓ OTP verified successfully');
 
       // Complete booking
       booking.status = 'completed';

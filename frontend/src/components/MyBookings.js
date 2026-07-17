@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { Car, Clock, Phone, MapPin, AlertCircle, Pencil, X, Check, User } from 'lucide-react';
+import { Car, Clock, Phone, MapPin, AlertCircle, Pencil, X, Check, User, Copy } from 'lucide-react';
 import api from '../services/api';
 import './MyBookings.css';
 
@@ -60,6 +60,7 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
     valuables:     booking.vehicle?.valuables    || [],
     driverName:    booking.vehicle?.driverName   || '',
     complementary: false,
+    cashPaymentStatus: booking.paymentStatus || 'unpaid', // 'paid' | 'unpaid'
   });
   const [newImages, setNewImages]   = useState([]);
   const [saving,   setSaving]       = useState(false);
@@ -103,6 +104,10 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
       data.append('valuables',     JSON.stringify(form.valuables));
       data.append('driverName',    form.driverName.trim());
       if (form.complementary) data.append('complementary', 'true');
+      // For cash bookings, save the payment received/remaining status
+      if (isCashBooking && !form.complementary) {
+        data.append('paymentStatus', form.cashPaymentStatus);
+      }
       newImages.forEach(f => data.append('carImages', f));
 
       const res = await api.put(`/bookings/${booking._id}`, data, {
@@ -220,6 +225,45 @@ const EditBookingModal = ({ booking, onClose, onSaved }) => {
               </datalist>
             </div>
 
+            {/* Cash Payment Status — only for cash bookings, not complementary */}
+            {isCashBooking && !form.complementary && (
+              <div style={{ marginTop: '12px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '8px' }}>
+                  Cash Payment Status
+                </label>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, cashPaymentStatus: 'paid' })}
+                    style={{
+                      flex: 1, padding: '10px 12px', borderRadius: '10px', border: 'none',
+                      cursor: 'pointer', fontWeight: 700, fontSize: '13px',
+                      background: form.cashPaymentStatus === 'paid' ? '#D1FAE5' : '#F3F4F6',
+                      color:      form.cashPaymentStatus === 'paid' ? '#065F46' : '#6B7280',
+                      outline:    form.cashPaymentStatus === 'paid' ? '2px solid #10B981' : '2px solid transparent',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    ✓ Payment Received
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, cashPaymentStatus: 'unpaid' })}
+                    style={{
+                      flex: 1, padding: '10px 12px', borderRadius: '10px', border: 'none',
+                      cursor: 'pointer', fontWeight: 700, fontSize: '13px',
+                      background: form.cashPaymentStatus === 'unpaid' ? '#FEF3C7' : '#F3F4F6',
+                      color:      form.cashPaymentStatus === 'unpaid' ? '#92400E' : '#6B7280',
+                      outline:    form.cashPaymentStatus === 'unpaid' ? '2px solid #F59E0B' : '2px solid transparent',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    ⏳ Payment Remaining
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Complementary toggle — only for cash bookings */}
             {isCashBooking && (
               <div className="edit-toggle-row" style={{ marginTop: '12px', background: form.complementary ? '#F0FDF4' : '#FFFBEB', border: `1.5px solid ${form.complementary ? '#86EFAC' : '#FDE68A'}`, borderRadius: '10px', padding: '10px 14px' }}>
@@ -333,6 +377,8 @@ const MyBookings = () => {
   const [selectedBooking,   setSelectedBooking]   = useState(null);
   const [estimatedTime,     setEstimatedTime]     = useState('');
   const [otp,               setOtp]               = useState('');
+  const [verifyMode,        setVerifyMode]        = useState('otp');   // 'otp' | 'phone'
+  const [customerPhoneInput,setCustomerPhoneInput]= useState('');
   const [paymentMethod,     setPaymentMethod]     = useState('cash');
   const [activeTab,         setActiveTab]         = useState('active');
   const [editingBooking,    setEditingBooking]    = useState(null);  // booking being edited
@@ -407,14 +453,22 @@ const MyBookings = () => {
   };
 
   const handleCompleteBooking = async (bookingId) => {
-    if (!otp || otp.length !== 6) { toast.error('Please enter valid 6-digit OTP'); return; }
+    if (verifyMode === 'otp') {
+      if (!otp || otp.length !== 6) { toast.error('Please enter valid 6-digit OTP'); return; }
+    } else {
+      if (!customerPhoneInput || customerPhoneInput.replace(/\D/g, '').length < 10) {
+        toast.error('Please enter a valid 10-digit phone number'); return;
+      }
+    }
     if (processingId) return;
     setProcessingId(bookingId);
     try {
-      const payload = { otp };
+      const payload = verifyMode === 'otp'
+        ? { otp }
+        : { customerPhone: customerPhoneInput };
       await api.post(`/bookings/${bookingId}/verify-complete`, payload);
       toast.success('Booking completed successfully!');
-      setOtp(''); setSelectedBooking(null);
+      setOtp(''); setCustomerPhoneInput(''); setSelectedBooking(null);
       fetchBookings(); fetchCompletedBookings();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to complete booking'); }
     finally { setProcessingId(null); }
@@ -515,12 +569,30 @@ const MyBookings = () => {
                           </div>
 
                           <div className="detail-row">
-                            <Phone size={18} color="#FF6B35" />
-                            <div>
-                              <strong>{booking.customer?.name}</strong>
-                              <span className="detail-meta">{booking.customer?.phone}</span>
+                              <Phone size={18} color="#FF6B35" />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div>
+                                  <strong>{booking.customer?.name}</strong>
+                                  <span className="detail-meta">{booking.customer?.phone}</span>
+                                </div>
+                                <button
+                                  title="Copy phone number"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(booking.customer?.phone || '');
+                                    toast.success('Phone copied!');
+                                  }}
+                                  style={{
+                                    background: 'none', border: '1px solid #E5E7EB',
+                                    borderRadius: '6px', padding: '3px 6px',
+                                    cursor: 'pointer', color: '#6B7280',
+                                    display: 'flex', alignItems: 'center',
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  <Copy size={13} />
+                                </button>
+                              </div>
                             </div>
-                          </div>
 
                           {booking.location?.venue && (
                             <div className="detail-row">
@@ -546,6 +618,31 @@ const MyBookings = () => {
                                 Handled by: {booking.vehicle.driverName}
                               </div>
                             </div>
+                          )}
+
+                          {/* Cash payment status banner */}
+                          {booking.payment?.method === 'cash' && booking.payment?.method !== 'foc' && (
+                            booking.paymentStatus === 'paid' ? (
+                              <div style={{
+                                marginTop: '8px', padding: '7px 12px', borderRadius: '8px',
+                                background: '#D1FAE5', border: '1.5px solid #6EE7B7',
+                                display: 'flex', alignItems: 'center', gap: '7px',
+                                fontSize: '12.5px', fontWeight: 700, color: '#065F46'
+                              }}>
+                                <Check size={14} color="#059669" />
+                                Cash Received
+                              </div>
+                            ) : (
+                              <div style={{
+                                marginTop: '8px', padding: '7px 12px', borderRadius: '8px',
+                                background: '#FEF3C7', border: '1.5px solid #FCD34D',
+                                display: 'flex', alignItems: 'center', gap: '7px',
+                                fontSize: '12.5px', fontWeight: 700, color: '#92400E'
+                              }}>
+                                <AlertCircle size={14} color="#D97706" />
+                                Cash Pending — Collect ₹{booking.payment?.amount || ''} from customer
+                              </div>
+                            )
                           )}
                         </div>
 
@@ -594,13 +691,67 @@ const MyBookings = () => {
                         {/* Arrived */}
                         {booking.status === 'arrived' && (
                           <div className="action-section">
-                            <p className="action-title">Car arrived. Ask customer for OTP.</p>
+                            <p className="action-title">Car arrived. Verify customer identity.</p>
                             {selectedBooking === booking._id ? (
                               <div className="action-form">
-                                <input type="text" placeholder="Enter OTP from customer" value={otp} onChange={(e) => setOtp(e.target.value)} maxLength="6" />
-                                <div className="action-buttons">
+                                {/* Mode toggle */}
+                                <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid #E5E7EB', marginBottom: '10px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setVerifyMode('otp'); setCustomerPhoneInput(''); }}
+                                    style={{
+                                      flex: 1, padding: '8px', border: 'none', cursor: 'pointer',
+                                      fontWeight: 700, fontSize: '12.5px',
+                                      background: verifyMode === 'otp' ? '#FF6B35' : '#F9FAFB',
+                                      color:      verifyMode === 'otp' ? '#fff' : '#6B7280',
+                                      transition: 'all 0.15s'
+                                    }}
+                                  >
+                                    🔢 Enter OTP
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setVerifyMode('phone'); setOtp(''); }}
+                                    style={{
+                                      flex: 1, padding: '8px', border: 'none', cursor: 'pointer',
+                                      fontWeight: 700, fontSize: '12.5px',
+                                      background: verifyMode === 'phone' ? '#FF6B35' : '#F9FAFB',
+                                      color:      verifyMode === 'phone' ? '#fff' : '#6B7280',
+                                      transition: 'all 0.15s'
+                                    }}
+                                  >
+                                    📱 Use Phone No.
+                                  </button>
+                                </div>
+
+                                {verifyMode === 'otp' ? (
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="Enter 6-digit OTP from customer"
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                    maxLength="6"
+                                  />
+                                ) : (
+                                  <>
+                                    <input
+                                      type="tel"
+                                      inputMode="numeric"
+                                      placeholder="Enter customer's registered mobile number"
+                                      value={customerPhoneInput}
+                                      onChange={(e) => setCustomerPhoneInput(e.target.value)}
+                                      maxLength="10"
+                                    />
+                                    <p style={{ fontSize: '11.5px', color: '#6B7280', margin: '5px 0 0', lineHeight: 1.4 }}>
+                                      ⚠️ Use only if customer is unable to provide OTP (e.g., phone switched off).
+                                    </p>
+                                  </>
+                                )}
+
+                                <div className="action-buttons" style={{ marginTop: '8px' }}>
                                   <button className="action-btn primary" onClick={() => handleCompleteBooking(booking._id)}>Complete Booking</button>
-                                  <button className="action-btn secondary" onClick={() => setSelectedBooking(null)}>Cancel</button>
+                                  <button className="action-btn secondary" onClick={() => { setSelectedBooking(null); setOtp(''); setCustomerPhoneInput(''); setVerifyMode('otp'); }}>Cancel</button>
                                 </div>
                               </div>
                             ) : (
