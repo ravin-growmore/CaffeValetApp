@@ -713,15 +713,15 @@
   margin: 0;
 }
 
-/* ── Locked Submit ── */
-.cbf-submit-locked {
-  background: linear-gradient(135deg, #9CA3AF, #6B7280) !important;
-  box-shadow: none !important;
-  cursor: not-allowed !important;
-}
-
-.cbf-submit-locked:hover {
-  transform: none !important;
+/* ── Inline spinner for button paying state ── */
+.cbf-spinner-inline {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255,255,255,0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: cbf-spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
 /* ── Success card payment badge ── */

@@ -9,8 +9,6 @@ import './CustomerBookingForm.css';
 const API_URL = process.env.REACT_APP_API_URL || '';
 const RAZORPAY_KEY = process.env.REACT_APP_RAZORPAY_KEY_ID || 'rzp_test_YOUR_KEY_ID_HERE';
 
-
-
 /* ─── Load Razorpay SDK once ─────────────────────────────── */
 const loadRazorpaySDK = () =>
   new Promise((resolve) => {
@@ -30,7 +28,6 @@ const CustomerBookingForm = () => {
     customerPhone: '',
     vehicleNumber: '',
   });
-  const [carImages, setCarImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [createdBookingId, setCreatedBookingId] = useState('');
@@ -39,8 +36,7 @@ const CustomerBookingForm = () => {
 
   const [paymentAmount, setPaymentAmount] = useState(150);
   const [paymentMethod, setPaymentMethod] = useState('razorpay'); // razorpay | cash
-  const [paymentState, setPaymentState] = useState('idle'); // idle | paying | success | failed
-  const [paymentData, setPaymentData] = useState(null); // { orderId, paymentId, signature }
+  const [paymentState, setPaymentState] = useState('idle'); // idle | paying | failed
   const [venueName, setVenueName] = useState('');
   const [venueLoading, setVenueLoading] = useState(true);
 
@@ -58,7 +54,6 @@ const CustomerBookingForm = () => {
           setVenueName(res.data.venueName);
         }
       } catch {
-        // If endpoint doesn't exist we just don't show the name - not a blocker
         setDriverName('Your Valet Driver');
       } finally {
         setVenueLoading(false);
@@ -71,141 +66,21 @@ const CustomerBookingForm = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-
-
-  /* ─── Razorpay Payment ──────────────────────────────────── */
-  const handlePayment = useCallback(async () => {
+  /* ─── Validate form fields before action ────────────────── */
+  const validateForm = () => {
     if (!/^[0-9]{10}$/.test(formData.customerPhone.trim())) {
-      toast.error('Please enter a valid 10-digit mobile number first'); return;
-    }
-    if (paymentAmount <= 0) { toast.error('Invalid payment amount'); return; }
-
-    setPaymentState('paying');
-
-    const sdkLoaded = await loadRazorpaySDK();
-    if (!sdkLoaded) {
-      toast.error('Failed to load payment gateway. Check your internet connection.');
-      setPaymentState('failed');
-      return;
-    }
-
-    try {
-      // Create Razorpay order on backend
-      const { data } = await axios.post(`${API_URL}/api/payment/create-order`, {
-        amount: paymentAmount,
-        notes: { customerName: formData.customerName, customerPhone: formData.customerPhone }
-      });
-
-      if (data.orderId && data.orderId.startsWith('mock_order_')) {
-        toast.loading('Processing Test Payment (Mock Mode)...', { duration: 1500 });
-        setTimeout(async () => {
-          try {
-            const verify = await axios.post(`${API_URL}/api/payment/verify`, {
-              razorpay_order_id: data.orderId,
-              razorpay_payment_id: `pay_mock_${Date.now()}`,
-              razorpay_signature: 'mock_signature'
-            });
-
-            if (verify.data.success) {
-              setPaymentData({
-                orderId: data.orderId,
-                paymentId: verify.data.paymentId,
-                signature: 'mock_signature'
-              });
-              setPaymentState('success');
-              toast.success('Test Payment Successful! (Mock Mode) ✓');
-            } else {
-              setPaymentState('failed');
-              toast.error('Test Payment Verification Failed.');
-            }
-          } catch {
-            setPaymentState('failed');
-            toast.error('Test Payment Verification Error.');
-          }
-        }, 1500);
-        return;
-      }
-
-      const options = {
-        key: RAZORPAY_KEY,
-        amount: data.amount,
-        currency: data.currency,
-        name: 'GrowMore Valet',
-        description: 'Valet Parking Payment',
-        order_id: data.orderId,
-        prefill: {
-          name: formData.customerName,
-          contact: formData.customerPhone,
-          email: formData.customerEmail || undefined
-        },
-        theme: { color: '#FF6B35' },
-        handler: async (response) => {
-          try {
-            // Verify signature on backend
-            const verify = await axios.post(`${API_URL}/api/payment/verify`, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            });
-
-            if (verify.data.success) {
-              setPaymentData({
-                orderId: response.razorpay_order_id,
-                paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature
-              });
-              setPaymentState('success');
-              toast.success('Payment successful! ✓');
-            } else {
-              setPaymentState('failed');
-              toast.error('Payment verification failed. Please retry.');
-            }
-          } catch {
-            setPaymentState('failed');
-            toast.error('Payment verification error. Please retry.');
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            if (paymentState !== 'success') {
-              setPaymentState('failed');
-              toast.error('Payment cancelled. Please retry to create your booking.');
-            }
-          }
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', () => {
-        setPaymentState('failed');
-        toast.error('Payment failed. Please retry.');
-      });
-      rzp.open();
-    } catch (err) {
-      setPaymentState('failed');
-      toast.error(err.response?.data?.message || 'Failed to initiate payment. Please try again.');
-    }
-  }, [formData, paymentAmount, paymentState]);
-
-  const handleRetryPayment = () => {
-    setPaymentState('idle');
-    setPaymentData(null);
-  };
-
-  /* ─── Form Submit ───────────────────────────────────────── */
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!/^[0-9]{10}$/.test(formData.customerPhone.trim())) {
-      toast.error('Enter a valid 10-digit mobile number'); return;
+      toast.error('Please enter a valid 10-digit mobile number');
+      return false;
     }
     if (formData.vehicleNumber.trim().length < 4) {
-      toast.error('Vehicle number must be at least 4 characters'); return;
+      toast.error('Vehicle number must be at least 4 characters');
+      return false;
     }
-    if (paymentMethod === 'razorpay' && (paymentState !== 'success' || !paymentData)) {
-      toast.error('Please complete payment before creating a booking'); return;
-    }
+    return true;
+  };
 
+  /* ─── Build and submit the booking ─────────────────────── */
+  const submitBooking = useCallback(async (razorpayPaymentData) => {
     setLoading(true);
     try {
       const data = new FormData();
@@ -213,11 +88,11 @@ const CustomerBookingForm = () => {
       data.append('customerName', formData.customerName.trim() || formData.customerPhone.trim());
       data.append('customerPhone', formData.customerPhone.trim());
       data.append('vehicleNumber', formData.vehicleNumber.trim().toUpperCase());
-      data.append('paymentMethod', paymentMethod);
-      if (paymentMethod === 'razorpay') {
-        data.append('razorpayOrderId', paymentData.orderId);
-        data.append('razorpayPaymentId', paymentData.paymentId);
-        data.append('razorpaySignature', paymentData.signature);
+      data.append('paymentMethod', razorpayPaymentData ? 'razorpay' : 'cash');
+      if (razorpayPaymentData) {
+        data.append('razorpayOrderId', razorpayPaymentData.orderId);
+        data.append('razorpayPaymentId', razorpayPaymentData.paymentId);
+        data.append('razorpaySignature', razorpayPaymentData.signature);
       }
       data.append('paymentAmount', paymentAmount);
 
@@ -233,6 +108,122 @@ const CustomerBookingForm = () => {
     } finally {
       setLoading(false);
     }
+  }, [driverPhone, formData, paymentAmount]);
+
+  /* ─── Single action button handler ─────────────────────── */
+  const handleActionButton = useCallback(async () => {
+    if (!validateForm()) return;
+
+    // ── Cash: directly create booking ──
+    if (paymentMethod === 'cash') {
+      await submitBooking(null);
+      return;
+    }
+
+    // ── Razorpay: pay then auto-create booking ──
+    setPaymentState('paying');
+
+    const sdkLoaded = await loadRazorpaySDK();
+    if (!sdkLoaded) {
+      toast.error('Failed to load payment gateway. Check your internet connection.');
+      setPaymentState('failed');
+      return;
+    }
+
+    try {
+      const { data } = await axios.post(`${API_URL}/api/payment/create-order`, {
+        amount: paymentAmount,
+        notes: { customerName: formData.customerName, customerPhone: formData.customerPhone }
+      });
+
+      // ── Mock / test mode ──
+      if (data.orderId && data.orderId.startsWith('mock_order_')) {
+        toast.loading('Processing Test Payment (Mock Mode)...', { duration: 1500 });
+        setTimeout(async () => {
+          try {
+            const verify = await axios.post(`${API_URL}/api/payment/verify`, {
+              razorpay_order_id: data.orderId,
+              razorpay_payment_id: `pay_mock_${Date.now()}`,
+              razorpay_signature: 'mock_signature'
+            });
+            if (verify.data.success) {
+              setPaymentState('idle');
+              await submitBooking({
+                orderId: data.orderId,
+                paymentId: verify.data.paymentId,
+                signature: 'mock_signature'
+              });
+            } else {
+              setPaymentState('failed');
+              toast.error('Test Payment Verification Failed.');
+            }
+          } catch {
+            setPaymentState('failed');
+            toast.error('Test Payment Verification Error.');
+          }
+        }, 1500);
+        return;
+      }
+
+      // ── Live Razorpay ──
+      const options = {
+        key: RAZORPAY_KEY,
+        amount: data.amount,
+        currency: data.currency,
+        name: 'GrowMore Valet',
+        description: 'Valet Parking Payment',
+        order_id: data.orderId,
+        prefill: {
+          name: formData.customerName,
+          contact: formData.customerPhone,
+        },
+        theme: { color: '#FF6B35' },
+        handler: async (response) => {
+          try {
+            const verify = await axios.post(`${API_URL}/api/payment/verify`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+            if (verify.data.success) {
+              setPaymentState('idle');
+              toast.success('Payment successful! Creating your booking...');
+              await submitBooking({
+                orderId: response.razorpay_order_id,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature
+              });
+            } else {
+              setPaymentState('failed');
+              toast.error('Payment verification failed. Please retry.');
+            }
+          } catch {
+            setPaymentState('failed');
+            toast.error('Payment verification error. Please retry.');
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setPaymentState('failed');
+            toast.error('Payment cancelled. Please retry.');
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', () => {
+        setPaymentState('failed');
+        toast.error('Payment failed. Please retry.');
+      });
+      rzp.open();
+    } catch (err) {
+      setPaymentState('failed');
+      toast.error(err.response?.data?.message || 'Failed to initiate payment. Please try again.');
+    }
+  }, [formData, paymentAmount, paymentMethod, submitBooking]);
+
+  const handleRetryPayment = () => {
+    setPaymentState('idle');
   };
 
   /* ─── Screens ───────────────────────────────────────────── */
@@ -269,7 +260,7 @@ const CustomerBookingForm = () => {
           {paymentMethod === 'razorpay' ? (
             <div className="cbf-payment-success-badge">
               <ShieldCheck size={16} color="#10B981" />
-              <span>Payment of ₹{paymentAmount} confirmed • {paymentData?.paymentId}</span>
+              <span>Payment of ₹{paymentAmount} confirmed online</span>
             </div>
           ) : (
             <div className="cbf-payment-success-badge" style={{ backgroundColor: '#FEF3C7', borderColor: '#FDE68A', color: '#92400E' }}>
@@ -286,6 +277,9 @@ const CustomerBookingForm = () => {
   }
 
   /* ─── Main Form ─────────────────────────────────────────── */
+  const isPaying = paymentState === 'paying';
+  const isFailed = paymentState === 'failed';
+
   return (
     <div className="cbf-page">
       <Toaster position="top-center" />
@@ -309,7 +303,7 @@ const CustomerBookingForm = () => {
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="cbf-form">
+        <form onSubmit={(e) => { e.preventDefault(); handleActionButton(); }} className="cbf-form">
 
           {/* Customer Info */}
           <div className="cbf-section">
@@ -317,17 +311,7 @@ const CustomerBookingForm = () => {
               <User size={18} /> Customer Information
             </div>
 
-            <div className="cbf-field">
-              <label>Full Name <span className="opt">(Optional)</span></label>
-              <input
-                type="text"
-                name="customerName"
-                value={formData.customerName}
-                onChange={handleChange}
-                placeholder="Your full name"
-              />
-            </div>
-
+            {/* Mobile first */}
             <div className="cbf-field">
               <label>Mobile Number <span className="req">*</span></label>
               <input
@@ -342,6 +326,17 @@ const CustomerBookingForm = () => {
               />
             </div>
 
+            {/* Name second (optional) */}
+            <div className="cbf-field">
+              <label>Full Name <span className="opt">(Optional)</span></label>
+              <input
+                type="text"
+                name="customerName"
+                value={formData.customerName}
+                onChange={handleChange}
+                placeholder="Your full name"
+              />
+            </div>
           </div>
 
           {/* Vehicle Info */}
@@ -367,8 +362,6 @@ const CustomerBookingForm = () => {
               />
             </div>
           </div>
-
-
 
           {/* ═══════════════ PAYMENT SECTION ══════════════════ */}
           <div className="cbf-section cbf-payment-section">
@@ -398,172 +391,97 @@ const CustomerBookingForm = () => {
                 <button
                   type="button"
                   style={{
-                    flex: 1,
-                    padding: '12px',
-                    borderRadius: '10px',
+                    flex: 1, padding: '12px', borderRadius: '10px',
                     border: paymentMethod === 'razorpay' ? '2.5px solid #FF6B35' : '2px solid #E5E7EB',
                     background: paymentMethod === 'razorpay' ? '#FFF5F2' : '#FAFAFA',
                     color: paymentMethod === 'razorpay' ? '#FF6B35' : '#374151',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: '14px',
-                    transition: 'all 0.2s'
+                    fontWeight: '700', cursor: 'pointer', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    fontFamily: "'Inter', sans-serif", fontSize: '14px', transition: 'all 0.2s'
                   }}
-                  onClick={() => setPaymentMethod('razorpay')}
+                  onClick={() => { setPaymentMethod('razorpay'); setPaymentState('idle'); }}
                 >
-                  <CreditCard size={18} />
-                  Online
+                  <CreditCard size={18} /> Online
                 </button>
                 <button
                   type="button"
                   style={{
-                    flex: 1,
-                    padding: '12px',
-                    borderRadius: '10px',
+                    flex: 1, padding: '12px', borderRadius: '10px',
                     border: paymentMethod === 'cash' ? '2.5px solid #FF6B35' : '2px solid #E5E7EB',
                     background: paymentMethod === 'cash' ? '#FFF5F2' : '#FAFAFA',
                     color: paymentMethod === 'cash' ? '#FF6B35' : '#374151',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: '14px',
-                    transition: 'all 0.2s'
+                    fontWeight: '700', cursor: 'pointer', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    fontFamily: "'Inter', sans-serif", fontSize: '14px', transition: 'all 0.2s'
                   }}
-                  onClick={() => setPaymentMethod('cash')}
+                  onClick={() => { setPaymentMethod('cash'); setPaymentState('idle'); }}
                 >
-                  <IndianRupee size={18} />
-                  Cash
+                  <IndianRupee size={18} /> Cash
                 </button>
               </div>
             </div>
 
-            {paymentMethod === 'razorpay' ? (
-              <>
-                <AnimatePresence mode="wait">
-                  {/* ── IDLE: Show Pay Button ── */}
-                  {paymentState === 'idle' && (
-                    <motion.button
-                      key="pay-btn"
-                      type="button"
-                      className="cbf-pay-btn"
-                      onClick={handlePayment}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <CreditCard size={20} />
-                      Pay ₹{paymentAmount} with Razorpay
-                    </motion.button>
-                  )}
-
-                  {/* ── PAYING: Spinner ── */}
-                  {paymentState === 'paying' && (
-                    <motion.div
-                      key="paying"
-                      className="cbf-payment-status paying"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                    >
-                      <div className="cbf-spinner-ring" />
-                      <span>Opening payment gateway…</span>
-                    </motion.div>
-                  )}
-
-                  {/* ── SUCCESS ── */}
-                  {paymentState === 'success' && (
-                    <motion.div
-                      key="success"
-                      className="cbf-payment-status success"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0 }}
-                    >
-                      <ShieldCheck size={22} color="#10B981" />
-                      <div>
-                        <span className="cbf-ps-title">Payment Successful ✓</span>
-                        <span className="cbf-ps-sub">₹{paymentAmount} paid • ID: {paymentData?.paymentId?.slice(-8)}</span>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* ── FAILED ── */}
-                  {paymentState === 'failed' && (
-                    <motion.div
-                      key="failed"
-                      className="cbf-payment-failed-wrap"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0 }}
-                    >
-                      <div className="cbf-payment-status failed">
-                        <AlertCircle size={22} color="#EF4444" />
-                        <span className="cbf-ps-title">Payment Failed or Cancelled</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="cbf-retry-btn"
-                        onClick={handleRetryPayment}
-                      >
-                        <RefreshCw size={16} />
-                        Retry Payment
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {paymentState !== 'success' && (
-                  <p className="cbf-payment-note">
-                    🔒 Secure payment powered by Razorpay. Pay first to confirm your booking slot.
-                  </p>
-                )}
-              </>
-            ) : (
+            {/* Cash info banner */}
+            {paymentMethod === 'cash' && (
               <div style={{
-                background: '#FEF3C7',
-                border: '1.5px solid #FDE68A',
-                borderRadius: '12px',
-                padding: '14px 16px',
-                color: '#92400E',
-                fontSize: '13.5px',
-                lineHeight: '1.5',
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'flex-start'
+                background: '#FEF3C7', border: '1.5px solid #FDE68A', borderRadius: '12px',
+                padding: '14px 16px', color: '#92400E', fontSize: '13.5px', lineHeight: '1.5',
+                display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '4px'
               }}>
                 <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px', color: '#D97706' }} />
                 <span>
-                  You selected <strong>Cash Payment</strong>. You can bypass the online gateway and complete booking directly. Please pay <strong>₹{paymentAmount}</strong> in cash to the valet driver upon vehicle handover/collection.
+                  You selected <strong>Cash Payment</strong>. Please pay <strong>₹{paymentAmount}</strong> in cash to the valet driver upon vehicle handover/collection.
                 </span>
               </div>
             )}
+
+            {/* Payment failed state */}
+            <AnimatePresence>
+              {isFailed && (
+                <motion.div
+                  key="failed"
+                  className="cbf-payment-failed-wrap"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <div className="cbf-payment-status failed">
+                    <AlertCircle size={22} color="#EF4444" />
+                    <span className="cbf-ps-title">Payment Failed or Cancelled</span>
+                  </div>
+                  <button type="button" className="cbf-retry-btn" onClick={handleRetryPayment}>
+                    <RefreshCw size={16} /> Retry Payment
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {paymentMethod === 'razorpay' && !isFailed && (
+              <p className="cbf-payment-note">
+                🔒 Secure payment powered by Razorpay. Booking is created instantly after payment.
+              </p>
+            )}
           </div>
 
-          {/* Submit — only active after payment success */}
-          <button
+          {/* ── Single Action Button ── */}
+          <motion.button
             type="submit"
-            className={`cbf-submit ${(paymentMethod === 'razorpay' && paymentState !== 'success') ? 'cbf-submit-locked' : ''}`}
-            disabled={loading || (paymentMethod === 'razorpay' && paymentState !== 'success')}
+            className="cbf-submit"
+            disabled={loading || isPaying}
+            whileHover={{ scale: loading || isPaying ? 1 : 1.02 }}
+            whileTap={{ scale: loading || isPaying ? 1 : 0.98 }}
+            style={{ opacity: loading || isPaying ? 0.75 : 1 }}
           >
             {loading ? (
-              <span className="cbf-spinner">Creating Booking...</span>
-            ) : (paymentMethod === 'razorpay' && paymentState !== 'success') ? (
-              <>🔒 Complete Payment to Book</>
+              <span className="cbf-spinner">Creating Booking…</span>
+            ) : isPaying ? (
+              <><div className="cbf-spinner-inline" /> Opening Payment Gateway…</>
+            ) : paymentMethod === 'razorpay' ? (
+              <><CreditCard size={20} /> Pay ₹{paymentAmount} &amp; Book</>
             ) : (
               <>🚗 Create Booking</>
             )}
-          </button>
+          </motion.button>
         </form>
 
         <p className="cbf-footer">Powered by GrowMore Valet Services</p>

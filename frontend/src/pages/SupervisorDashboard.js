@@ -321,7 +321,6 @@ const SupervisorDashboard = () => {
                         <th>Booking ID</th>
                         <th>Customer</th>
                         <th>Vehicle</th>
-                        <th>Driver</th>
                         <th>Status</th>
                         <th>Payment</th>
                         <th>Booking Time</th>
@@ -342,7 +341,6 @@ const SupervisorDashboard = () => {
                               <small>{booking.customer?.phone}</small>
                             </td>
                             <td>{booking.vehicle?.number}</td>
-                            <td>{booking.driver?.name || 'N/A'}</td>
                             <td>
                               <span className={`status-badge status-${booking.status}`}>
                                 {booking.status}
