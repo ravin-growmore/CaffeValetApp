@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const Booking = require('../models/Booking');
 const User = require('../models/User');
+const Venue = require('../models/Venue');
 const { auth, authorize } = require('../middleware/auth');
 const smsService     = require('../services/smsService');
 const whatsappService = require('../services/whatsappService');
@@ -88,6 +89,20 @@ router.post('/',
         console.log('Images uploaded successfully:', imageUrls);
       }
 
+      // Determine default parking fee from the driver's assigned venue
+      let defaultParkingFee = 150; // fallback if no venue is configured
+      try {
+        const driverUser = await User.findById(req.user._id).populate('venue');
+        if (driverUser && driverUser.venue && typeof driverUser.venue.parkingFee === 'number') {
+          defaultParkingFee = driverUser.venue.parkingFee;
+          console.log(`Using venue parkingFee: ₹${defaultParkingFee} (venue: ${driverUser.venue.name})`);
+        } else {
+          console.log('No venue parkingFee found for driver, using default ₹150');
+        }
+      } catch (venueErr) {
+        console.error('Could not fetch driver venue for fee:', venueErr.message);
+      }
+
       const booking = new Booking({
         driver: req.user._id,
         customer: {
@@ -109,7 +124,7 @@ router.post('/',
         notes,
         payment: {
           method: paymentMethod || 'cash',
-          amount: paymentAmount ? parseFloat(paymentAmount) : 150,
+          amount: paymentAmount ? parseFloat(paymentAmount) : defaultParkingFee,
           status: paymentMethod && paymentMethod !== 'foc' ? 'completed' : (paymentMethod === 'foc' ? 'completed' : 'completed'),
           paidAt: new Date()
         },
@@ -393,7 +408,7 @@ router.post('/public',
   [
     body('driverPhone').notEmpty().withMessage('Driver phone is required'),
     body('customerPhone').isMobilePhone().withMessage('Invalid customer phone'),
-    body('customerName').trim().notEmpty().withMessage('Customer name is required'),
+    body('customerName').optional().trim(),
     body('vehicleNumber').trim().isLength({ min: 4 }).withMessage('Vehicle number must be at least 4 characters'),
   ],
   async (req, res) => {
@@ -404,11 +419,14 @@ router.post('/public',
       }
 
       const {
-        driverPhone, customerPhone, customerName, customerEmail,
+        driverPhone, customerPhone, customerName: rawCustomerName, customerEmail,
         vehicleNumber, notes, hasValuables, valuables,
         razorpayOrderId, razorpayPaymentId, razorpaySignature, paymentAmount,
         paymentMethod
       } = req.body;
+
+      // Use phone number as name fallback to prevent blank-name template errors
+      const customerName = (rawCustomerName && rawCustomerName.trim()) ? rawCustomerName.trim() : customerPhone;
 
       const isRazorpay = !paymentMethod || paymentMethod === 'razorpay';
 

@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { useParams } from 'react-router-dom';
-import { Car, FileText, CheckCircle, User, CreditCard, ShieldCheck, AlertCircle, RefreshCw, IndianRupee } from 'lucide-react';
+import { Car, CheckCircle, User, CreditCard, ShieldCheck, AlertCircle, RefreshCw, IndianRupee } from 'lucide-react';
 import axios from 'axios';
 import './CustomerBookingForm.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
 const RAZORPAY_KEY = process.env.REACT_APP_RAZORPAY_KEY_ID || 'rzp_test_YOUR_KEY_ID_HERE';
 
-const valuableOptions = ['Laptop', 'Phone', 'Wallet', 'Gift', 'Snacks', 'Charger', 'HeadPhone'];
+
 
 /* ─── Load Razorpay SDK once ─────────────────────────────── */
 const loadRazorpaySDK = () =>
@@ -28,11 +28,7 @@ const CustomerBookingForm = () => {
   const [formData, setFormData] = useState({
     customerName: '',
     customerPhone: '',
-    customerEmail: '',
     vehicleNumber: '',
-    notes: '',
-    hasValuables: false,
-    valuables: [],
   });
   const [carImages, setCarImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -75,34 +71,10 @@ const CustomerBookingForm = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleValuablesToggle = () => {
-    setFormData({
-      ...formData,
-      hasValuables: !formData.hasValuables,
-      valuables: !formData.hasValuables ? formData.valuables : []
-    });
-  };
 
-  const handleValuableSelect = (v) => {
-    const updated = formData.valuables.includes(v)
-      ? formData.valuables.filter(x => x !== v)
-      : [...formData.valuables, v];
-    setFormData({ ...formData, valuables: updated });
-  };
-
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length + carImages.length > 4) {
-      toast.error('Maximum 4 images allowed'); return;
-    }
-    setCarImages([...carImages, ...files]);
-  };
-
-  const removeImage = (i) => setCarImages(carImages.filter((_, idx) => idx !== i));
 
   /* ─── Razorpay Payment ──────────────────────────────────── */
   const handlePayment = useCallback(async () => {
-    if (!formData.customerName.trim()) { toast.error('Please enter your name first'); return; }
     if (!/^[0-9]{10}$/.test(formData.customerPhone.trim())) {
       toast.error('Please enter a valid 10-digit mobile number first'); return;
     }
@@ -224,7 +196,6 @@ const CustomerBookingForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.customerName.trim()) { toast.error('Name is required'); return; }
     if (!/^[0-9]{10}$/.test(formData.customerPhone.trim())) {
       toast.error('Enter a valid 10-digit mobile number'); return;
     }
@@ -239,13 +210,9 @@ const CustomerBookingForm = () => {
     try {
       const data = new FormData();
       data.append('driverPhone', driverPhone);
-      data.append('customerName', formData.customerName.trim());
+      data.append('customerName', formData.customerName.trim() || formData.customerPhone.trim());
       data.append('customerPhone', formData.customerPhone.trim());
-      if (formData.customerEmail.trim()) data.append('customerEmail', formData.customerEmail.trim());
       data.append('vehicleNumber', formData.vehicleNumber.trim().toUpperCase());
-      data.append('notes', formData.notes);
-      data.append('hasValuables', formData.hasValuables);
-      data.append('valuables', JSON.stringify(formData.valuables));
       data.append('paymentMethod', paymentMethod);
       if (paymentMethod === 'razorpay') {
         data.append('razorpayOrderId', paymentData.orderId);
@@ -253,7 +220,6 @@ const CustomerBookingForm = () => {
         data.append('razorpaySignature', paymentData.signature);
       }
       data.append('paymentAmount', paymentAmount);
-      carImages.forEach(f => data.append('carImages', f));
 
       const res = await axios.post(`${API_URL}/api/bookings/public`, data, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -352,14 +318,13 @@ const CustomerBookingForm = () => {
             </div>
 
             <div className="cbf-field">
-              <label>Full Name <span className="req">*</span></label>
+              <label>Full Name <span className="opt">(Optional)</span></label>
               <input
                 type="text"
                 name="customerName"
                 value={formData.customerName}
                 onChange={handleChange}
                 placeholder="Your full name"
-                required
               />
             </div>
 
@@ -377,16 +342,6 @@ const CustomerBookingForm = () => {
               />
             </div>
 
-            <div className="cbf-field">
-              <label>Email <span className="opt">(Optional)</span></label>
-              <input
-                type="email"
-                name="customerEmail"
-                value={formData.customerEmail}
-                onChange={handleChange}
-                placeholder="you@email.com"
-              />
-            </div>
           </div>
 
           {/* Vehicle Info */}
@@ -413,108 +368,7 @@ const CustomerBookingForm = () => {
             </div>
           </div>
 
-          {/* Vehicle Security */}
-          <div className="cbf-section">
-            <div className="cbf-section-title">
-              <Car size={18} /> Vehicle Security <span className="cbf-opt-label">(Optional)</span>
-            </div>
 
-            <div className="cbf-toggle-row">
-              <span>Any valuables in the car?</span>
-              <label className="cbf-toggle">
-                <input
-                  type="checkbox"
-                  checked={formData.hasValuables}
-                  onChange={handleValuablesToggle}
-                />
-                <span className="cbf-toggle-slider" />
-              </label>
-            </div>
-
-            {formData.hasValuables && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="cbf-valuables"
-              >
-                <p className="cbf-valuables-label">Select what's inside:</p>
-                <div className="cbf-chips">
-                  {valuableOptions.map(v => (
-                    <button
-                      key={v}
-                      type="button"
-                      className={`cbf-chip ${formData.valuables.includes(v) ? 'selected' : ''}`}
-                      onClick={() => handleValuableSelect(v)}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Images */}
-            <div className="cbf-images-section">
-              <label className="cbf-img-label">Car Images (Optional, max 4)</label>
-              <p className="cbf-img-hint">Capture front, back, left & right for security</p>
-
-              <div className="cbf-img-buttons">
-                <div className="cbf-img-area">
-                  <input
-                    type="file" id="cbfBrowse" accept="image/*" multiple
-                    onChange={handleImageChange} style={{ display: 'none' }}
-                    disabled={carImages.length >= 4}
-                  />
-                  <label htmlFor="cbfBrowse" className={`cbf-upload-btn ${carImages.length >= 4 ? 'disabled' : ''}`}>
-                    <Car size={28} /> Browse
-                  </label>
-                </div>
-                <div className="cbf-img-area">
-                  <input
-                    type="file" id="cbfCamera" accept="image/*" capture="environment"
-                    onChange={handleImageChange} style={{ display: 'none' }}
-                    disabled={carImages.length >= 4}
-                  />
-                  <label htmlFor="cbfCamera" className={`cbf-upload-btn camera ${carImages.length >= 4 ? 'disabled' : ''}`}>
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                      <circle cx="12" cy="13" r="4"/>
-                    </svg>
-                    Camera
-                  </label>
-                </div>
-              </div>
-
-              <div className="cbf-count">{carImages.length}/4 images added</div>
-
-              {carImages.length > 0 && (
-                <div className="cbf-preview-grid">
-                  {carImages.map((f, i) => (
-                    <div key={i} className="cbf-preview">
-                      <img src={URL.createObjectURL(f)} alt={`car-${i}`} />
-                      <button type="button" className="cbf-rm-img" onClick={() => removeImage(i)}>×</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div className="cbf-section">
-            <div className="cbf-section-title">
-              <FileText size={18} /> Notes <span className="cbf-opt-label">(Optional)</span>
-            </div>
-            <div className="cbf-field">
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                rows="3"
-                placeholder="Any special instructions..."
-              />
-            </div>
-          </div>
 
           {/* ═══════════════ PAYMENT SECTION ══════════════════ */}
           <div className="cbf-section cbf-payment-section">
