@@ -56,7 +56,7 @@ router.post('/login',
       const token = jwt.sign(
         { id: user._id, role: user.role },
         process.env.JWT_SECRET,
-        { expiresIn: '7d' }
+        { expiresIn: '15d' }
       );
 
       res.json({
@@ -160,7 +160,7 @@ router.post('/customer/verify-otp',
       const token = jwt.sign(
         { id: user._id, role: user.role },
         process.env.JWT_SECRET,
-        { expiresIn: '7d' }
+        { expiresIn: '15d' }
       );
 
       res.json({
@@ -212,7 +212,7 @@ router.get('/customer/access/:token', async (req, res) => {
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '15d' }
     );
 
     res.json({
