@@ -133,7 +133,13 @@ const CustomerBookingForm = () => {
     try {
       const { data } = await axios.post(`${API_URL}/api/payment/create-order`, {
         amount: paymentAmount,
-        notes: { customerName: formData.customerName, customerPhone: formData.customerPhone }
+        notes: {
+          customerName: formData.customerName.trim() || formData.customerPhone.trim(),
+          customerPhone: formData.customerPhone.trim(),
+          driverPhone,
+          vehicleNumber: formData.vehicleNumber.trim().toUpperCase(),
+          paymentAmount: String(paymentAmount)
+        }
       });
 
       // ── Mock / test mode ──

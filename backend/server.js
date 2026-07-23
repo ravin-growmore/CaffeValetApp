@@ -195,3 +195,6 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`✓ Server running on port ${PORT}`);
 });
+
+// Export app so routes (e.g. webhook) can access io via app.get('io')
+module.exports = app;
