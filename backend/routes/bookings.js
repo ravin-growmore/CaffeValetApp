@@ -5,9 +5,9 @@ const Booking = require('../models/Booking');
 const User = require('../models/User');
 const Venue = require('../models/Venue');
 const { auth, authorize } = require('../middleware/auth');
-const smsService     = require('../services/smsService');
+const smsService = require('../services/smsService');
 const whatsappService = require('../services/whatsappService');
-const emailService   = require('../services/emailService');
+const emailService = require('../services/emailService');
 const { upload } = require('../config/imageUpload');
 const { uploadMultipleFiles } = require('../config/googleDrive');
 
@@ -66,7 +66,7 @@ router.post('/',
           console.log('Customer not found in database, using phone as name');
         }
       }
-      
+
       console.log('=== Creating New Booking ===');
       console.log('Customer:', { name: customerName, phone: customerPhone, email: customerEmail || 'No email' });
       console.log('Vehicle:', { type: vehicleType, number: vehicleNumber });
@@ -135,16 +135,16 @@ router.post('/',
       await booking.save();
       await booking.populate('driver', 'name phone');
 
-      console.log('Booking created successfully:', { 
-        id: booking._id, 
-        bookingId: booking.bookingId, 
+      console.log('Booking created successfully:', {
+        id: booking._id,
+        bookingId: booking.bookingId,
         driver: booking.driver._id,
         customer: booking.customer.phone,
         status: booking.status
       });
 
       // Generate direct access link with token
-      const accessLink = `${process.env.FRONTEND_URL || 'https://growmoreapp2-0.onrender.com'}/customer/access/${booking.accessToken}`;
+      const accessLink = `${process.env.FRONTEND_URL || 'https://caffequattrovaletapp.onrender.com'}/customer/access/${booking.accessToken}`;
       console.log('📱 Access link generated:', accessLink);
       console.log('🔑 Access Token:', booking.accessToken);
 
@@ -222,9 +222,9 @@ router.get('/my-bookings', auth, authorize('driver'), async (req, res) => {
   try {
     const { status } = req.query;
     const query = { driver: req.user._id };
-    
+
     console.log('Fetching bookings for driver:', req.user._id);
-    
+
     if (status) {
       query.status = status;
     } else {
@@ -249,15 +249,15 @@ router.get('/my-bookings', auth, authorize('driver'), async (req, res) => {
 router.get('/all', auth, authorize('supervisor'), async (req, res) => {
   try {
     const { status, from, to } = req.query;
-    
+
     // Find all drivers assigned to this supervisor
-    const assignedDrivers = await User.find({ 
-      role: 'driver', 
-      supervisor: req.user._id 
+    const assignedDrivers = await User.find({
+      role: 'driver',
+      supervisor: req.user._id
     }).select('_id');
-    
+
     const driverIds = assignedDrivers.map(d => d._id);
-    
+
     const query = {
       driver: { $in: driverIds }
     };
@@ -466,7 +466,7 @@ router.post('/public',
         if (existing) {
           console.log(`Public booking: duplicate detected for order ${razorpayOrderId} → returning existing ${existing.bookingId}`);
           await existing.populate('driver', 'name phone');
-          const accessLink = `${process.env.FRONTEND_URL || 'https://growmoreapp2-0.onrender.com'}/customer/access/${existing.accessToken}`;
+          const accessLink = `${process.env.FRONTEND_URL || 'https://caffequattrovaletapp.onrender.com'}/customer/access/${existing.accessToken}`;
           return res.status(200).json({
             message: 'Booking already exists',
             booking: existing,
@@ -531,7 +531,7 @@ router.post('/public',
       await booking.populate('driver', 'name phone');
 
       // Generate access link for customer to track
-      const accessLink = `${process.env.FRONTEND_URL || 'https://growmoreapp2-0.onrender.com'}/customer/access/${booking.accessToken}`;
+      const accessLink = `${process.env.FRONTEND_URL || 'https://caffequattrovaletapp.onrender.com'}/customer/access/${booking.accessToken}`;
 
       // Send SMS + WhatsApp confirmation
       try {
@@ -598,9 +598,9 @@ router.post('/:id/recall', auth, authorize('customer'), async (req, res) => {
     });
     console.log('Recall notification sent to driver via socket');
 
-    res.json({ 
+    res.json({
       message: 'Recall request sent to driver',
-      booking 
+      booking
     });
   } catch (error) {
     console.error('Recall error:', error);
@@ -631,9 +631,9 @@ router.post('/:id/driver-recall', auth, authorize('driver'), async (req, res) =>
 
     console.log('Driver initiated recall:', { bookingId: booking.bookingId, driver: req.user._id });
 
-    res.json({ 
+    res.json({
       message: 'Recall initiated. Set arrival time.',
-      booking 
+      booking
     });
   } catch (error) {
     console.error('Driver recall error:', error);
@@ -727,9 +727,9 @@ router.post('/:id/estimate-arrival', auth, authorize('driver'), async (req, res)
 
     console.log('=== Arrival Time Set Complete ===\n');
 
-    res.json({ 
+    res.json({
       message: 'Estimated arrival time set',
-      booking 
+      booking
     });
   } catch (error) {
     console.error('Set arrival error:', error);
@@ -743,7 +743,7 @@ router.post('/:id/arrived', auth, authorize('driver'), async (req, res) => {
     console.log('=== Driver Marking as Arrived ===');
     console.log('Booking ID:', req.params.id);
     console.log('Driver:', { id: req.user._id, role: req.user.role });
-    
+
     const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
@@ -751,10 +751,10 @@ router.post('/:id/arrived', auth, authorize('driver'), async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    console.log('Booking found:', { 
+    console.log('Booking found:', {
       bookingId: booking.bookingId,
-      bookingDriver: booking.driver.toString(), 
-      requestUser: req.user._id.toString() 
+      bookingDriver: booking.driver.toString(),
+      requestUser: req.user._id.toString()
     });
 
     if (booking.driver.toString() !== req.user._id.toString()) {
@@ -767,7 +767,7 @@ router.post('/:id/arrived', auth, authorize('driver'), async (req, res) => {
     console.log('🔐 OTP GENERATED');
     console.log('OTP:', otp);
     console.log('OTP Expiry: 10 minutes from now');
-    
+
     booking.status = 'arrived';
     booking.recall.arrivedAt = new Date();
     booking.verification.otp = otp;
@@ -836,10 +836,10 @@ router.post('/:id/arrived', auth, authorize('driver'), async (req, res) => {
 
     console.log('=== Driver Arrival Complete ===\n');
 
-    res.json({ 
+    res.json({
       message: 'Arrival confirmed. OTP sent to customer.',
       otp, // In production, don't send OTP in response
-      booking 
+      booking
     });
   } catch (error) {
     console.error('Mark arrived error:', error);
@@ -848,7 +848,7 @@ router.post('/:id/arrived', auth, authorize('driver'), async (req, res) => {
 });
 
 // Driver: Verify OTP and Complete (OTP OR customer phone number as fallback)
-router.post('/:id/verify-complete', auth, authorize('driver'), 
+router.post('/:id/verify-complete', auth, authorize('driver'),
   async (req, res) => {
     try {
       const { otp, customerPhone } = req.body;
@@ -857,11 +857,11 @@ router.post('/:id/verify-complete', auth, authorize('driver'),
       if (!otp && !customerPhone) {
         return res.status(400).json({ message: 'Please provide OTP or customer phone number' });
       }
-      
+
       console.log('=== Verifying and Completing Booking ===');
       console.log('Booking ID:', req.params.id);
       console.log('Method:', otp ? 'OTP' : 'Customer Phone');
-      
+
       const booking = await Booking.findById(req.params.id);
 
       if (!booking) {
@@ -935,9 +935,9 @@ router.post('/:id/verify-complete', auth, authorize('driver'),
 
       console.log('=== Booking Completion Process Finished ===\n');
 
-      res.json({ 
+      res.json({
         message: 'Booking completed successfully',
-        booking 
+        booking
       });
     } catch (error) {
       console.error('Complete booking error:', error);
@@ -953,11 +953,11 @@ router.get('/stats/overview', auth, authorize('supervisor'), async (req, res) =>
     today.setHours(0, 0, 0, 0);
 
     // Find all drivers assigned to this supervisor
-    const assignedDrivers = await User.find({ 
-      role: 'driver', 
-      supervisor: req.user._id 
+    const assignedDrivers = await User.find({
+      role: 'driver',
+      supervisor: req.user._id
     }).select('_id');
-    
+
     const driverIds = assignedDrivers.map(d => d._id);
 
     const stats = await Booking.aggregate([
@@ -1010,11 +1010,11 @@ router.get('/stats/daywise-revenue', auth, authorize('supervisor'), async (req, 
     endDate.setDate(endDate.getDate() + 1);
 
     // Find all drivers assigned to this supervisor
-    const assignedDrivers = await User.find({ 
-      role: 'driver', 
-      supervisor: req.user._id 
+    const assignedDrivers = await User.find({
+      role: 'driver',
+      supervisor: req.user._id
     }).select('_id');
-    
+
     const driverIds = assignedDrivers.map(d => d._id);
 
     const revenue = await Booking.aggregate([

@@ -102,7 +102,7 @@ PORT=5000
 MONGODB_URI=mongodb://localhost:27017/growmore
 JWT_SECRET=local_dev_secret_key_change_in_production
 NODE_ENV=development
-FRONTEND_URL=https://growmoreapp2-0.onrender.com
+FRONTEND_URL=https://caffequattrovaletapp.onrender.com
 ```
 
 **frontend/.env**:
@@ -122,7 +122,7 @@ node seed.js
 npm run dev
 ```
 
-Frontend: https://growmoreapp2-0.onrender.com
+Frontend: https://caffequattrovaletapp.onrender.com
 Backend: api
 
 ## SMS Configuration (Optional)

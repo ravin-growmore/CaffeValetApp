@@ -201,12 +201,12 @@ router.post('/webhook', async (req, res) => {
       const app = require('../server');
       const io = app?.get?.('io');
       if (io) io.to('supervisors').emit('new-booking', { booking: booking.toObject() });
-    } catch (_) {}
+    } catch (_) { }
 
     // Send SMS confirmation (best-effort)
     try {
       const smsService = require('../services/smsService');
-      const accessLink = `${process.env.FRONTEND_URL || 'https://growmoreapp2-0.onrender.com'}/customer/access/${booking.accessToken}`;
+      const accessLink = `${process.env.FRONTEND_URL || 'https://caffequattrovaletapp.onrender.com'}/customer/access/${booking.accessToken}`;
       await smsService.sendBookingConfirmation(customerPhone, booking.bookingId, accessLink);
     } catch (smsErr) {
       console.warn('Webhook: SMS failed:', smsErr.message);

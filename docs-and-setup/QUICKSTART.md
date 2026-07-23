@@ -29,7 +29,7 @@ npm run dev
 ```
 
 That's it! The app will open at:
-- **Frontend**: https://growmoreapp2-0.onrender.com
+- **Frontend**: https://caffequattrovaletapp.onrender.com
 - **Backend**: api
 
 ### Step 3: Login & Test
@@ -48,12 +48,12 @@ That's it! The app will open at:
 
 ## 📱 Test the Complete Flow
 
-1. **As Driver** (https://growmoreapp2-0.onrender.com/login):
+1. **As Driver** (https://caffequattrovaletapp.onrender.com/login):
    - Login with driver credentials
    - Create a new booking
    - Note the booking ID
 
-2. **As Customer** (https://growmoreapp2-0.onrender.com/customer/login):
+2. **As Customer** (https://caffequattrovaletapp.onrender.com/customer/login):
    - Login with OTP (any phone)
    - See your booking
    - Click "Recall My Car"

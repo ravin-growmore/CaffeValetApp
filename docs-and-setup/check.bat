@@ -111,7 +111,7 @@ if defined ERRORS (
     echo Next steps:
     echo   1. Ensure backend/.env has your MongoDB URI
     echo   2. Run: npm run dev
-    echo   3. Access: https://growmoreapp2-0.onrender.com
+    echo   3. Access: https://caffequattrovaletapp.onrender.com
     echo.
 )
 

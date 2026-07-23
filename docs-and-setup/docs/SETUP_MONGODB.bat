@@ -18,7 +18,7 @@ if not exist "backend\.env" (
         echo JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
         echo.
         echo # Frontend URL
-        echo FRONTEND_URL=https://growmoreapp2-0.onrender.com
+        echo FRONTEND_URL=https://caffequattrovaletapp.onrender.com
         echo.
         echo # Server Port
         echo PORT=5000

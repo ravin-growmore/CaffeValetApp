@@ -64,7 +64,7 @@ echo.
 echo Next steps:
 echo   1. Update backend/.env with your MongoDB URI
 echo   2. Run: npm run dev
-echo   3. Open https://growmoreapp2-0.onrender.com
+echo   3. Open https://caffequattrovaletapp.onrender.com
 echo.
 echo Login credentials:
 echo   Driver: 9999999999 / driver123

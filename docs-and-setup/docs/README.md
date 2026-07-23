@@ -87,7 +87,7 @@ npm start
 cd frontend
 npm install
 npm start
-# Frontend will run on https://growmoreapp2-0.onrender.com
+# Frontend will run on https://caffequattrovaletapp.onrender.com
 ```
 
 **Option 2: Run both together (if you have a script)**
@@ -97,7 +97,7 @@ npm start
 npm run dev
 ```
 
-- **Frontend**: https://growmoreapp2-0.onrender.com
+- **Frontend**: https://caffequattrovaletapp.onrender.com
 - **Backend API**: http://localhost:5000/api
 
 ## 🔐 Default Login Credentials

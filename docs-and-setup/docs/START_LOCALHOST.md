@@ -29,7 +29,7 @@ MONGODB_URI=mongodb://localhost:27017/growmore
 # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/growmore
 
 JWT_SECRET=your-secret-key-here
-FRONTEND_URL=https://growmoreapp2-0.onrender.com
+FRONTEND_URL=https://caffequattrovaletapp.onrender.com
 PORT=5000
 ```
 
@@ -66,9 +66,9 @@ cd frontend
 npm start
 ```
 
-Frontend will run on: **https://growmoreapp2-0.onrender.com**
+Frontend will run on: **https://caffequattrovaletapp.onrender.com**
 
-The browser should automatically open. If not, navigate to https://growmoreapp2-0.onrender.com
+The browser should automatically open. If not, navigate to https://caffequattrovaletapp.onrender.com
 
 ## Configuration Details
 
@@ -79,8 +79,8 @@ The browser should automatically open. If not, navigate to https://growmoreapp2-
 
 ### Backend Configuration
 - **Port**: 5000 (default, can be changed via PORT env variable)
-- **CORS**: Configured to allow `https://growmoreapp2-0.onrender.com`
-- **Socket.io**: Configured to connect from `https://growmoreapp2-0.onrender.com`
+- **CORS**: Configured to allow `https://caffequattrovaletapp.onrender.com`
+- **Socket.io**: Configured to connect from `https://caffequattrovaletapp.onrender.com`
 
 ## Troubleshooting
 
@@ -119,7 +119,7 @@ mongod
 If you see CORS errors:
 1. Make sure backend is running on port 5000
 2. Make sure frontend is running on port 3000
-3. Check `backend/server.js` - CORS should allow `https://growmoreapp2-0.onrender.com`
+3. Check `backend/server.js` - CORS should allow `https://caffequattrovaletapp.onrender.com`
 
 ### Socket.io Connection Issues
 
@@ -129,7 +129,7 @@ If you see CORS errors:
 
 ## Testing the Setup
 
-1. **Open Frontend**: https://growmoreapp2-0.onrender.com
+1. **Open Frontend**: https://caffequattrovaletapp.onrender.com
 2. **Login as Driver**: 
    - Phone: `9999999999`
    - Password: `driver123`
@@ -138,7 +138,7 @@ If you see CORS errors:
 
 ## Default URLs
 
-- **Frontend**: https://growmoreapp2-0.onrender.com
+- **Frontend**: https://caffequattrovaletapp.onrender.com
 - **Backend API**: http://localhost:5000/api
 - **Backend Health Check**: http://localhost:5000/api/health (if implemented)
 
@@ -155,7 +155,7 @@ REACT_APP_SOCKET_URL=http://localhost:5000
 **Backend `.env`:**
 ```env
 PORT=5000
-FRONTEND_URL=https://growmoreapp2-0.onrender.com
+FRONTEND_URL=https://caffequattrovaletapp.onrender.com
 MONGODB_URI=mongodb://localhost:27017/growmore
 JWT_SECRET=your-secret-key
 ```

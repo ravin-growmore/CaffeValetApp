@@ -41,7 +41,7 @@ npm run dev
 
 ## 🎯 IMMEDIATE ACCESS
 
-Once running, open: **https://growmoreapp2-0.onrender.com**
+Once running, open: **https://caffequattrovaletapp.onrender.com**
 
 ### Login Credentials:
 
@@ -228,7 +228,7 @@ check.bat
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/growmore
 JWT_SECRET=your_secret_key
-FRONTEND_URL=https://growmoreapp2-0.onrender.com
+FRONTEND_URL=https://caffequattrovaletapp.onrender.com
 ```
 
 ### Frontend (.env already created)
@@ -301,7 +301,7 @@ Everything is set up. Just run:
 npm run dev
 ```
 
-Then open: **https://growmoreapp2-0.onrender.com**
+Then open: **https://caffequattrovaletapp.onrender.com**
 
 For detailed instructions: **[QUICKSTART.md](QUICKSTART.md)**
 
