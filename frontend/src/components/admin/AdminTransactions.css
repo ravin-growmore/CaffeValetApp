@@ -460,3 +460,95 @@
   .atx-status-row { grid-template-columns: 1fr; }
   .atx-container { padding: 16px; }
 }
+
+/* ── Table header row with hint ── */
+.atx-table-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.atx-table-header-row h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1A1A2E;
+  margin: 0;
+}
+
+.atx-admin-hint {
+  font-size: 11.5px;
+  color: #9CA3AF;
+  font-weight: 500;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 20px;
+  padding: 4px 12px;
+}
+
+/* ── Editable select wrapper ── */
+.atx-edit-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.atx-edit-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 20px;
+  padding: 4px 26px 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.18s;
+  background: #FAFAFA;
+  color: #374151;
+  min-width: 100px;
+}
+
+.atx-edit-select:hover:not(:disabled) {
+  border-color: #FF6B35;
+  background: #FFF5F2;
+}
+
+.atx-edit-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.atx-select-chevron {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  color: #9CA3AF;
+  flex-shrink: 0;
+}
+
+/* Status select color variants */
+.atx-status-select.atx-badge-success {
+  background: #ECFDF5;
+  color: #065F46;
+  border-color: #A7F3D0;
+}
+
+.atx-status-select.atx-badge-pending {
+  background: #FFFBEB;
+  color: #92400E;
+  border-color: #FDE68A;
+}
+
+.atx-status-select.atx-badge-failed {
+  background: #FEF2F2;
+  color: #991B1B;
+  border-color: #FECACA;
+}
+

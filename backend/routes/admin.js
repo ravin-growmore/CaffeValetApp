@@ -425,29 +425,47 @@ router.post('/venues',
 // Update venue (Admin only)
 router.put('/venues/:id', auth, authorize('admin'), async (req, res) => {
   try {
-    const { name, requiresUpfrontPayment, supervisorId, isActive, parkingSpots } = req.body;
+    const { name, requiresUpfrontPayment, supervisorId, isActive, parkingSpots, parkingFee } = req.body;
     const venue = await Venue.findById(req.params.id);
 
     if (!venue) {
       return res.status(404).json({ message: 'Venue not found' });
     }
 
-    if (name) venue.name = name;
+    if (name && name.trim()) {
+      const existingVenue = await Venue.findOne({
+        name: new RegExp(`^${name.trim()}$`, 'i'),
+        _id: { $ne: req.params.id }
+      });
+      if (existingVenue) {
+        return res.status(400).json({ message: 'Venue with this name already exists' });
+      }
+      venue.name = name.trim();
+    }
+
     if (typeof requiresUpfrontPayment !== 'undefined') {
       venue.requiresUpfrontPayment = requiresUpfrontPayment;
     }
 
     if (parkingFee !== undefined && parkingFee !== null && parkingFee !== '') {
-      venue.parkingFee = parseFloat(parkingFee);
+      const parsedFee = parseFloat(parkingFee);
+      if (!isNaN(parsedFee) && parsedFee >= 0) {
+        venue.parkingFee = parsedFee;
+      }
     }
 
-    if (requiresUpfrontPayment && supervisorId) {
+    const willRequireUpfront = typeof requiresUpfrontPayment !== 'undefined' ? requiresUpfrontPayment : venue.requiresUpfrontPayment;
+
+    if (supervisorId && supervisorId.trim() !== '') {
       const supervisor = await User.findById(supervisorId);
       if (!supervisor || supervisor.role !== 'supervisor') {
         return res.status(400).json({ message: 'Invalid supervisor' });
       }
       venue.supervisor = supervisorId;
-    } else if (!requiresUpfrontPayment) {
+    } else {
+      if (willRequireUpfront) {
+        return res.status(400).json({ message: 'Supervisor is required when upfront payment is enabled' });
+      }
       venue.supervisor = null;
     }
 
@@ -465,7 +483,7 @@ router.put('/venues/:id', auth, authorize('admin'), async (req, res) => {
     });
   } catch (error) {
     console.error('Update venue error:', error);
-    res.status(500).json({ message: 'Failed to update venue' });
+    res.status(500).json({ message: error.message || 'Failed to update venue' });
   }
 });
 
@@ -905,5 +923,50 @@ router.delete('/managers/:id', auth, authorize('admin'), async (req, res) => {
   }
 });
 
+// Update payment status / method (Admin only)
+// PATCH /api/admin/bookings/:id/payment
+router.patch('/bookings/:id/payment', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { paymentStatus, paymentMethod } = req.body;
+
+    const ALLOWED_STATUS = ['pending', 'completed', 'failed'];
+    const ALLOWED_METHOD = ['cash', 'razorpay', 'upi', 'card', 'qr', 'staff', 'foc'];
+
+    if (!paymentStatus && !paymentMethod) {
+      return res.status(400).json({ message: 'Provide paymentStatus and/or paymentMethod to update' });
+    }
+    if (paymentStatus && !ALLOWED_STATUS.includes(paymentStatus)) {
+      return res.status(400).json({ message: `Invalid paymentStatus. Allowed: ${ALLOWED_STATUS.join(', ')}` });
+    }
+    if (paymentMethod && !ALLOWED_METHOD.includes(paymentMethod)) {
+      return res.status(400).json({ message: `Invalid paymentMethod. Allowed: ${ALLOWED_METHOD.join(', ')}` });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    if (paymentStatus) {
+      booking.payment.status = paymentStatus;
+      booking.paymentStatus = paymentStatus === 'completed' ? 'paid' : paymentStatus === 'pending' ? 'unpaid' : 'failed';
+      if (paymentStatus === 'completed' && !booking.payment.paidAt) {
+        booking.payment.paidAt = new Date();
+      }
+    }
+    if (paymentMethod) {
+      booking.payment.method = paymentMethod;
+    }
+
+    await booking.save();
+
+    console.log(`Admin updated payment for ${booking.bookingId}: status=${paymentStatus || '(unchanged)'} method=${paymentMethod || '(unchanged)'}`);
+
+    res.json({ message: 'Payment updated successfully', booking });
+  } catch (error) {
+    console.error('Update payment error:', error);
+    res.status(500).json({ message: 'Failed to update payment' });
+  }
+});
+
 module.exports = router;
+
 

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
   TrendingUp, IndianRupee, CheckCircle, XCircle, Clock,
-  CreditCard, RefreshCw, Calendar, BarChart2, PieChart
+  CreditCard, RefreshCw, Calendar, BarChart2, PieChart, ChevronDown
 } from 'lucide-react';
 import api from '../../services/api';
 import './AdminTransactions.css';
@@ -36,7 +36,6 @@ const BarChart = ({ data, height = 140 }) => {
               >
                 <title>₹{d.amount.toLocaleString()} • {d.count} txn{d.count !== 1 ? 's' : ''} • {d.label}</title>
               </rect>
-              {/* x-axis label every ~5 bars for daily, always for others */}
               {(i % Math.ceil(data.length / 10) === 0 || i === data.length - 1) && (
                 <text
                   x={x + barW / 2} y={height + 16}
@@ -103,6 +102,7 @@ const AdminTransactions = () => {
   const [loading, setLoading] = useState(true);
   const [chartView, setChartView] = useState('daily'); // daily | weekly | monthly
   const [refreshing, setRefreshing] = useState(false);
+  const [updating, setUpdating] = useState(null); // bookingId being saved
 
   const fetchData = useCallback(async () => {
     try {
@@ -112,7 +112,6 @@ const AdminTransactions = () => {
       ]);
       if (revenueRes.status === 'fulfilled') setData(revenueRes.value.data);
       if (bookingsRes.status === 'fulfilled') {
-        // Filter bookings that have payment info
         setRecentTxns(bookingsRes.value.data.bookings || []);
       }
       if (revenueRes.status === 'rejected') toast.error('Failed to load revenue data');
@@ -125,6 +124,38 @@ const AdminTransactions = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleRefresh = () => { setRefreshing(true); fetchData(); };
+
+  /* ─── Admin: update payment field inline ─── */
+  const updatePayment = async (bookingDbId, bookingId, field, value) => {
+    const key = `${bookingDbId}-${field}`;
+    setUpdating(key);
+    try {
+      const payload = field === 'status'
+        ? { paymentStatus: value }
+        : { paymentMethod: value };
+
+      await api.patch(`/admin/bookings/${bookingDbId}/payment`, payload);
+
+      // Optimistically update local state
+      setRecentTxns(prev => prev.map(b => {
+        if (b._id !== bookingDbId) return b;
+        const updated = { ...b, payment: { ...b.payment } };
+        if (field === 'status') {
+          updated.payment.status = value;
+          updated.paymentStatus = value === 'completed' ? 'paid' : value === 'pending' ? 'unpaid' : 'failed';
+        } else {
+          updated.payment.method = value;
+        }
+        return updated;
+      }));
+
+      toast.success(`Payment ${field === 'status' ? 'status' : 'method'} updated for ${bookingId}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Update failed');
+    } finally {
+      setUpdating(null);
+    }
+  };
 
   const fmt = (n) => `₹${(n || 0).toLocaleString('en-IN')}`;
 
@@ -173,7 +204,7 @@ const AdminTransactions = () => {
       <div className="atx-header">
         <div>
           <h2>Transaction Dashboard</h2>
-          <p>Revenue analytics & payment monitoring</p>
+          <p>Revenue analytics &amp; payment monitoring</p>
         </div>
         <button className="atx-refresh-btn" onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw size={15} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
@@ -322,7 +353,10 @@ const AdminTransactions = () => {
         transition={{ delay: 0.6 }}
         className="atx-table-card"
       >
-        <h3><CreditCard size={16} /> Recent Transactions</h3>
+        <div className="atx-table-header-row">
+          <h3><CreditCard size={16} /> Recent Transactions</h3>
+          <span className="atx-admin-hint">✏️ Click Method or Status to edit</span>
+        </div>
         <div className="atx-table-wrap">
           <table className="atx-table">
             <thead>
@@ -339,6 +373,8 @@ const AdminTransactions = () => {
             <tbody>
               {recentTxns.map(b => {
                 const badge = getStatusBadge(b.payment?.status);
+                const statusKey = `${b._id}-status`;
+                const methodKey = `${b._id}-method`;
                 return (
                   <tr key={b._id}>
                     <td><span className="atx-booking-id">{b.bookingId}</span></td>
@@ -352,14 +388,50 @@ const AdminTransactions = () => {
                         {b.payment?.amount ? `₹${b.payment.amount}` : '—'}
                       </span>
                     </td>
+
+                    {/* ── Method — admin editable dropdown ── */}
                     <td>
-                      <span className="atx-method-badge" style={{ background: (paymentMethodColors[b.payment?.method] || '#9CA3AF') + '20', color: paymentMethodColors[b.payment?.method] || '#6B7280' }}>
-                        {getPaymentMethodLabel(b.payment?.method || 'pending')}
-                      </span>
+                      <div className="atx-edit-select-wrap">
+                        <select
+                          className="atx-edit-select atx-method-select"
+                          value={b.payment?.method || 'cash'}
+                          disabled={updating === methodKey}
+                          onChange={(e) => updatePayment(b._id, b.bookingId, 'method', e.target.value)}
+                          style={{
+                            background: (paymentMethodColors[b.payment?.method] || '#9CA3AF') + '18',
+                            color: paymentMethodColors[b.payment?.method] || '#6B7280',
+                            borderColor: (paymentMethodColors[b.payment?.method] || '#9CA3AF') + '60'
+                          }}
+                        >
+                          <option value="cash">💵 Cash</option>
+                          <option value="razorpay">💳 Razorpay</option>
+                          <option value="upi">📱 UPI</option>
+                          <option value="card">🃏 Card</option>
+                          <option value="qr">🔲 QR</option>
+                          <option value="staff">👷 Staff</option>
+                          <option value="foc">🎁 FOC</option>
+                        </select>
+                        <ChevronDown size={11} className="atx-select-chevron" />
+                      </div>
                     </td>
+
+                    {/* ── Status — admin editable dropdown ── */}
                     <td>
-                      <span className={`atx-badge ${badge.cls}`}>{badge.label}</span>
+                      <div className="atx-edit-select-wrap">
+                        <select
+                          className={`atx-edit-select atx-status-select ${badge.cls}`}
+                          value={b.payment?.status || 'pending'}
+                          disabled={updating === statusKey}
+                          onChange={(e) => updatePayment(b._id, b.bookingId, 'status', e.target.value)}
+                        >
+                          <option value="pending">⏳ Pending</option>
+                          <option value="completed">✅ Paid</option>
+                          <option value="failed">❌ Failed</option>
+                        </select>
+                        <ChevronDown size={11} className="atx-select-chevron" />
+                      </div>
                     </td>
+
                     <td>
                       <span className="atx-date">
                         {new Date(b.createdAt).toLocaleDateString('en-IN', {
