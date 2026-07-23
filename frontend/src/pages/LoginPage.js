@@ -8,10 +8,34 @@ import './LoginPage.css';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, logout } = useAuth();
+  const { login, logout, user, isAuthenticated, loading } = useAuth();
   const [formData, setFormData] = useState({ phone: '', password: '', role: 'driver' });
-  const [loading, setLoading] = useState(false);
+  const [loadingForm, setLoadingForm] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (!loading && isAuthenticated && user) {
+      switch (user.role) {
+        case 'admin':
+          navigate('/admin/stats', { replace: true });
+          break;
+        case 'supervisor':
+          navigate('/supervisor/dashboard', { replace: true });
+          break;
+        case 'manager':
+          navigate('/manager/dashboard', { replace: true });
+          break;
+        case 'driver':
+          navigate('/driver/create-booking', { replace: true });
+          break;
+        case 'customer':
+          navigate('/customer/dashboard', { replace: true });
+          break;
+        default:
+          break;
+      }
+    }
+  }, [user, isAuthenticated, loading, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -19,14 +43,14 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setLoadingForm(true);
     try {
       const result = await login(formData, formData.role);
       if (result.success) {
         if (result.user.role === 'admin') {
           toast.error('Admin login is not allowed here. Please use the admin portal.');
           logout();
-          setLoading(false);
+          setLoadingForm(false);
           return;
         }
         toast.success(`Welcome back, ${result.user.name}!`);
@@ -43,7 +67,7 @@ const LoginPage = () => {
     } catch (error) {
       toast.error('Login failed. Please try again.');
     } finally {
-      setLoading(false);
+      setLoadingForm(false);
     }
   };
 

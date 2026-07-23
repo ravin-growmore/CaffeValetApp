@@ -9,16 +9,22 @@ import './CustomerLogin.css';
 
 const CustomerLogin = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, isAuthenticated, loading } = useAuth();
   const [step, setStep] = useState(1); // 1: phone, 2: otp
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadingForm, setLoadingForm] = useState(false);
+
+  React.useEffect(() => {
+    if (!loading && isAuthenticated && user?.role === 'customer') {
+      navigate('/customer/dashboard', { replace: true });
+    }
+  }, [user, isAuthenticated, loading, navigate]);
 
   const handleRequestOTP = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setLoadingForm(true);
 
     try {
       await api.post('/auth/customer/request-otp', { phone });
@@ -27,13 +33,13 @@ const CustomerLogin = () => {
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to send OTP');
     } finally {
-      setLoading(false);
+      setLoadingForm(false);
     }
   };
 
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setLoadingForm(true);
 
     try {
       const result = await login({ phone, otp, name }, 'customer');
@@ -47,7 +53,7 @@ const CustomerLogin = () => {
     } catch (error) {
       toast.error('OTP verification failed');
     } finally {
-      setLoading(false);
+      setLoadingForm(false);
     }
   };
 

@@ -8,13 +8,19 @@ import './AdminLogin.css';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, isAuthenticated, loading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     phone: '',
     password: ''
   });
-  const [loading, setLoading] = useState(false);
+  const [loadingForm, setLoadingForm] = useState(false);
+
+  useEffect(() => {
+    if (!loading && isAuthenticated && user?.role === 'admin') {
+      navigate('/admin/stats', { replace: true });
+    }
+  }, [user, isAuthenticated, loading, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -25,21 +31,21 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setLoadingForm(true);
 
     try {
       const result = await login(formData, 'admin');
       
       if (!result.success) {
         toast.error(result.message);
-        setLoading(false);
+        setLoadingForm(false);
         return;
       }
 
       // Verify admin role
       if (result.user.role !== 'admin') {
         toast.error('Unauthorized. Admin access only.');
-        setLoading(false);
+        setLoadingForm(false);
         return;
       }
       
@@ -48,7 +54,7 @@ const AdminLogin = () => {
     } catch (error) {
       toast.error('Login failed');
     } finally {
-      setLoading(false);
+      setLoadingForm(false);
     }
   };
 

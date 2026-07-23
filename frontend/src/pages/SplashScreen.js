@@ -1,19 +1,45 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 import logoVideo from '../logo.mp4';
 import './SplashScreen.css';
 
 const SplashScreen = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
+    if (loading) return;
+
     const timer = setTimeout(() => {
-      navigate('/login');
-    }, 3200);
+      if (isAuthenticated && user) {
+        switch (user.role) {
+          case 'admin':
+            navigate('/admin/stats', { replace: true });
+            break;
+          case 'supervisor':
+            navigate('/supervisor/dashboard', { replace: true });
+            break;
+          case 'manager':
+            navigate('/manager/dashboard', { replace: true });
+            break;
+          case 'driver':
+            navigate('/driver/create-booking', { replace: true });
+            break;
+          case 'customer':
+            navigate('/customer/dashboard', { replace: true });
+            break;
+          default:
+            navigate('/login', { replace: true });
+        }
+      } else {
+        navigate('/login', { replace: true });
+      }
+    }, 2500);
 
     return () => clearTimeout(timer);
-  }, [navigate]);
+  }, [navigate, user, isAuthenticated, loading]);
 
   return (
     <div className="splash-screen">
