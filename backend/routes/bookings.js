@@ -457,7 +457,25 @@ router.post('/public',
         return res.status(404).json({ message: 'Driver not found for this QR code' });
       }
 
-      // Parse valuables
+      // ── Deduplication: webhook may have already created this booking ──────
+      // If the customer closed the browser after payment and the webhook fired,
+      // then reopened the browser (Razorpay handler fires again), we return the
+      // existing booking instead of creating a duplicate.
+      if (isRazorpay && razorpayOrderId) {
+        const existing = await Booking.findOne({ 'payment.razorpay.orderId': razorpayOrderId });
+        if (existing) {
+          console.log(`Public booking: duplicate detected for order ${razorpayOrderId} → returning existing ${existing.bookingId}`);
+          await existing.populate('driver', 'name phone');
+          const accessLink = `${process.env.FRONTEND_URL || 'https://growmoreapp2-0.onrender.com'}/customer/access/${existing.accessToken}`;
+          return res.status(200).json({
+            message: 'Booking already exists',
+            booking: existing,
+            accessLink
+          });
+        }
+      }
+
+
       let valuablesList = [];
       if (valuables) {
         try { valuablesList = JSON.parse(valuables); } catch (e) { valuablesList = []; }
