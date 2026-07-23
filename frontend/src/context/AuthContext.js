@@ -26,8 +26,15 @@ export const AuthProvider = ({ children }) => {
           // Verify token is still valid
           await api.get('/auth/me');
         } catch (error) {
-          console.error('Token validation failed:', error);
-          logout();
+          const status = error?.response?.status;
+          if (status === 401) {
+            // Token is genuinely expired or invalid — log out
+            console.warn('Token expired, logging out.');
+            logout();
+          } else {
+            // Network error / server cold-start (Render spin-up) — keep the user logged in
+            console.warn('Could not verify token (server unreachable), keeping session alive.');
+          }
         }
       }
       setLoading(false);

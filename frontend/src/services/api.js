@@ -27,7 +27,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const isAuthRoute = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/customer/verify-otp');
+    const isVerifyRoute = error.config?.url?.includes('/auth/me');
+    const isOnLoginPage = window.location.pathname === '/login' || window.location.pathname === '/' || window.location.pathname === '/admin';
+
     if (error.response?.status === 401 && !isAuthRoute) {
+      // Don't force logout on the /auth/me check during splash/startup (handled in AuthContext)
+      if (isVerifyRoute && isOnLoginPage) {
+        return Promise.reject(error);
+      }
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
