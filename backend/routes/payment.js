@@ -97,10 +97,10 @@ router.post('/verify', (req, res) => {
 //   Events       →  payment.captured
 //   Secret       →  set as RAZORPAY_WEBHOOK_SECRET in .env
 //
-// IMPORTANT: express.raw() is applied per-route so the JSON body parser
-// doesn't consume the raw bytes needed for HMAC verification.
+// IMPORTANT: express.raw({ type: 'application/json' }) is registered in server.js
+// BEFORE express.json() so req.body arrives here as a raw Buffer, not a parsed Object.
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 

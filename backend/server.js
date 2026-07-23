@@ -49,6 +49,10 @@ app.use(
   })
 );
 
+// ✅ Razorpay webhook needs raw Buffer body for HMAC signature verification.
+// This MUST be registered before express.json() so the body isn't pre-parsed.
+app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
