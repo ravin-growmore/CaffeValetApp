@@ -104,7 +104,7 @@ class WhatsAppService {
   // ─────────────────────────────────────────────────────────────
 
   /**
-   * Template: cafe_quattro_otp_20260711184419
+   * Template: cafe_quattro_otp_20260731010652
    * Category: AUTHENTICATION
    * Variables: {{1}} = OTP code
    * Button: Copy Code — "Copy OTP"
@@ -123,7 +123,7 @@ class WhatsAppService {
         messages: [{
           kind: 'template',
           template: {
-            name: 'cafe_quattro_otp_20260711184419',
+            name: 'cafe_quattro_otp_20260731010652',
             language: 'en_US',
             components: [
               {
@@ -140,7 +140,7 @@ class WhatsAppService {
           }
         }]
       };
-      return this._post(payload, 'cafe_quattro_otp_20260711184419');
+      return this._post(payload, 'cafe_quattro_otp_20260731010652');
     } else {
       console.log(`\n📲 MOCK WhatsApp OTP: ${otp} to ${phone}\n`);
       return { success: true, mock: true };
@@ -148,7 +148,7 @@ class WhatsAppService {
   }
 
   /**
-   * Template: cafe_quattro_booking_confirmation_20260711184852
+   * Template: cafe_quattro_booking_confirmation_20260731005736
    * Category: UTILITY
    * Body variables: {{1}} = customerName, {{2}} = bookingId
    * Button (index 0): Call To Action (URL) — "Track my car"
@@ -165,7 +165,7 @@ class WhatsAppService {
         messages: [{
           kind: 'template',
           template: {
-            name: 'cafe_quattro_booking_confirmation_20260711184852',
+            name: 'cafe_quattro_booking_confirmation_20260731005736',
             language: 'en_US',
             components: [
               // Body: {{1}} = customerName, {{2}} = bookingId
@@ -189,11 +189,11 @@ class WhatsAppService {
           }
         }]
       };
-      return this._post(payload, 'cafe_quattro_booking_confirmation_20260711184852');
+      return this._post(payload, 'cafe_quattro_booking_confirmation_20260731005736');
     } else {
       console.log('\n📲 MOCK WhatsApp:');
       console.log(`   To       : ${to}`);
-      console.log(`   Template : cafe_quattro_booking_confirmation_20260711184852`);
+      console.log(`   Template : cafe_quattro_booking_confirmation_20260731005736`);
       console.log(`   {{1}}    : ${customerName || 'Customer'}`);
       console.log(`   {{2}}    : ${bookingId}`);
       console.log(`   [Button] : Track my car → accessToken=${accessToken}`);
@@ -203,13 +203,13 @@ class WhatsAppService {
   }
 
   /**
-   * Template: cafe_quattro_recall_notification_20260711185046
+   * Template: cafe_quattro_recall_notification_20260731005839
    * Category: UTILITY
    * Variables: {{1}} = bookingId, {{2}} = estimatedMinutes
    * Buttons: None
    */
   async sendRecallNotification(phone, bookingId, estimatedMinutes) {
-    return this.sendTemplate(phone, 'cafe_quattro_recall_notification_20260711185046', [
+    return this.sendTemplate(phone, 'cafe_quattro_recall_notification_20260731005839', [
       bookingId,
       String(estimatedMinutes)
     ]);
@@ -218,17 +218,17 @@ class WhatsAppService {
   /**
    * ── ARRIVAL NOTIFICATION — 2 messages sent back-to-back ──────────────
    *
-   * MSG 1 — Template: cafe_quattro_car_arrived_20260711195101  (UTILITY)
+   * MSG 1 — Template: cafe_quattro_car_arrived_20260731005920  (UTILITY)
    * Variables: {{1}} = bookingId  — no auth words, passes UTILITY review
    *
-   * MSG 2 — Template: cafe_quattro_handover_otp_20260711195215  (AUTHENTICATION)
+   * MSG 2 — Template: cafe_quattro_handover_otp_20260731010001  (AUTHENTICATION)
    * Variables: {{1}} = OTP  — Copy Code button
    */
   async sendArrivalNotification(phone, bookingId, otp) {
     // MSG 1: UTILITY — car arrived notice
     const notify = await this.sendTemplate(
       phone,
-      'cafe_quattro_car_arrived_20260711195101',
+      'cafe_quattro_car_arrived_20260731005920',
       [bookingId]
     );
 
@@ -243,7 +243,7 @@ class WhatsAppService {
         messages: [{
           kind: 'template',
           template: {
-            name: 'cafe_quattro_handover_otp_20260711195215',
+            name: 'cafe_quattro_handover_otp_20260731010001',
             language: 'en_US',
             components: [
               {
@@ -260,7 +260,7 @@ class WhatsAppService {
           }
         }]
       };
-      otpResult = await this._post(payload, 'cafe_quattro_handover_otp_20260711195215');
+      otpResult = await this._post(payload, 'cafe_quattro_handover_otp_20260731010001');
     } else {
       console.log(`\n📲 MOCK WhatsApp Handover OTP: ${otp} to ${phone}\n`);
       otpResult = { success: true, mock: true };
@@ -270,13 +270,13 @@ class WhatsAppService {
   }
 
   /**
-   * Template: cafe_quattro_thank_you_20260711195539
+   * Template: cafe_quattro_thank_you_20260731010057
    * Category: UTILITY
    * Variables: {{1}} = customerName, {{2}} = bookingId
    * Buttons: None
    */
   async sendThankYou(phone, customerName, bookingId) {
-    return this.sendTemplate(phone, 'cafe_quattro_thank_you_20260711195539', [
+    return this.sendTemplate(phone, 'cafe_quattro_thank_you_20260731010057', [
       customerName || 'Valued Customer',
       bookingId
     ]);
