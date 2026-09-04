@@ -3,6 +3,12 @@ const router = express.Router();
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
+// ── App Identity ──────────────────────────────────────────────────────────────
+// Every Razorpay order created by THIS app is stamped with this appId in its
+// notes. The webhook verifies the stamp before creating a booking, so payments
+// from other valet apps sharing the same Razorpay account are safely ignored.
+const APP_ID = process.env.APP_ID || 'caffequattroandheri';
+
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_YOUR_KEY_ID_HERE',
   key_secret: process.env.RAZORPAY_KEY_SECRET || 'YOUR_KEY_SECRET_HERE'
@@ -19,11 +25,15 @@ router.post('/create-order', async (req, res) => {
       return res.status(400).json({ message: 'Invalid amount' });
     }
 
+    // Stamp every order with this app's identity so the webhook can filter
+    // payments that originated here vs other valet apps on the same account.
+    const stampedNotes = { ...notes, appId: APP_ID };
+
     const options = {
       amount: Math.round(amount * 100), // Razorpay expects paise
       currency,
       receipt: `rcpt_${Date.now()}`,
-      notes
+      notes: stampedNotes
     };
 
     if (!process.env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID === 'rzp_test_YOUR_KEY_ID_HERE' || process.env.RAZORPAY_KEY_SECRET === 'YOUR_KEY_SECRET_HERE') {
@@ -134,6 +144,21 @@ router.post('/webhook', async (req, res) => {
     }
 
     const { order_id: razorpayOrderId, id: razorpayPaymentId, notes } = payment;
+
+    // ── App-ID Guard ──────────────────────────────────────────────────────────
+    // Verify this payment was created by THIS app (caffequattroandheri).
+    // Multiple valet apps share the same Razorpay account and each registers
+    // its own webhook. Without this check, a payment from another app would
+    // trigger a duplicate booking here.
+    const paymentAppId = notes?.appId;
+    if (paymentAppId !== APP_ID) {
+      console.log(
+        `Webhook: ignoring payment ${razorpayPaymentId} — appId mismatch ` +
+        `(got: "${paymentAppId ?? 'undefined'}", expected: "${APP_ID}")`
+      );
+      return res.json({ received: true, action: 'ignored-wrong-app', appId: paymentAppId });
+    }
+    console.log(`✅ Webhook: appId verified as "${APP_ID}" for payment ${razorpayPaymentId}`);
 
     // Booking details were embedded in the order notes at create-order time
     const { driverPhone, customerPhone, customerName, vehicleNumber, paymentAmount } = notes || {};
