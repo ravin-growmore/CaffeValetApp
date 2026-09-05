@@ -44,7 +44,11 @@ app.use(
 
 app.use(
   cors({
-    origin: [process.env.FRONTEND_URL, "https://caffequattrovaletapp.onrender.com"].filter(Boolean),
+    origin: [
+      process.env.FRONTEND_URL,
+      "https://caffequattrovaletapp.onrender.com",
+      process.env.ADMIN_PANEL_URL  // GrowMore Central Admin Panel
+    ].filter(Boolean),
     credentials: true,
   })
 );
@@ -106,6 +110,7 @@ app.use("/api/users", require("./routes/users"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/venues", require("./routes/venues"));
 app.use("/api/payment", require("./routes/payment"));
+app.use("/api/public-data", require("./routes/publicData")); // GrowMore Central Admin Panel integration
 
 // ✅ Serve uploaded images
 const { UPLOAD_PATH } = require("./config/imageUpload");
