@@ -103,7 +103,7 @@ router.get('/summary', async (req, res) => {
               totalBookings: { $sum: 1 },
               totalRevenue: {
                 $sum: {
-                  $cond: [{ $eq: ['$paymentStatus', 'paid'] }, { $ifNull: ['$payment.amount', 0] }, 0]
+                  $cond: [{ $eq: ['$payment.status', 'completed'] }, { $ifNull: ['$payment.amount', 0] }, 0]
                 }
               }
             }
@@ -119,7 +119,7 @@ router.get('/summary', async (req, res) => {
               todayBookings: { $sum: 1 },
               todayRevenue: {
                 $sum: {
-                  $cond: [{ $eq: ['$paymentStatus', 'paid'] }, { $ifNull: ['$payment.amount', 0] }, 0]
+                  $cond: [{ $eq: ['$payment.status', 'completed'] }, { $ifNull: ['$payment.amount', 0] }, 0]
                 }
               }
             }
@@ -137,7 +137,7 @@ router.get('/summary', async (req, res) => {
 
         // Payment method breakdown (paid bookings only, all-time)
         Booking.aggregate([
-          { $match: { paymentStatus: 'paid' } },
+          { $match: { 'payment.status': 'completed' } },
           {
             $group: {
               _id: '$payment.method',
@@ -266,7 +266,7 @@ router.get('/revenue', async (req, res) => {
 
     const baseMatch = {
       $match: {
-        paymentStatus: 'paid',
+        'payment.status': 'completed',
         createdAt: { $gte: fromDate, $lte: toDate }
       }
     };
@@ -442,7 +442,7 @@ router.get('/venues', async (req, res) => {
         {
           $match: {
             createdAt: { $gte: todayStart },
-            paymentStatus: 'paid'
+            'payment.status': 'completed'
           }
         },
         {
