@@ -127,9 +127,38 @@ const bookingSchema = new mongoose.Schema({
   }
 });
 
-// Update timestamp before saving
+// Update timestamp and keep paymentStatus + payment.status in sync before saving.
+// Two complementary fields exist for historical reasons:
+//   paymentStatus  →  top-level 'unpaid' | 'paid'  (used by Admin Panel mark-paid)
+//   payment.status →  nested  'pending' | 'completed' | 'failed'  (used by revenue queries)
+// BenneCafe pattern: whichever side was changed, sync the other automatically.
 bookingSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+
+  // Sync paymentStatus → payment.status
+  if (this.paymentStatus === 'paid') {
+    this.payment.status = 'completed';
+    if (!this.payment.paidAt) {
+      this.payment.paidAt = new Date();
+    }
+  } else if (this.paymentStatus === 'unpaid') {
+    // Only downgrade if it wasn't already explicitly marked completed
+    if (this.payment.status !== 'completed') {
+      this.payment.status = 'pending';
+    }
+  }
+
+  // Sync payment.status → paymentStatus (in case only nested field was set)
+  if (this.payment && this.payment.status === 'completed' && this.paymentStatus !== 'paid') {
+    this.paymentStatus = 'paid';
+    if (!this.payment.paidAt) {
+      this.payment.paidAt = new Date();
+    }
+  } else if (this.payment && (this.payment.status === 'pending' || this.payment.status === 'failed') && this.paymentStatus === 'paid') {
+    // Don't override paymentStatus='paid' if payment.status is still pending (race condition guard)
+    // Only reset if paymentStatus was explicitly set to match
+  }
+
   next();
 });
 

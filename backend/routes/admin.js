@@ -923,13 +923,21 @@ router.delete('/managers/:id', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// Update payment status / method (Admin only)
+// Update payment status / method (Admin, Manager)
 // PATCH /api/admin/bookings/:id/payment
-router.patch('/bookings/:id/payment', auth, authorize('admin'), async (req, res) => {
+//
+// Accepts BOTH naming conventions so the GrowMore Admin Panel and the legacy
+// driver app work correctly:
+//   Top-level paymentStatus: 'unpaid' | 'paid'           ← Admin Panel sends this
+//   Nested payment.status:   'pending' | 'completed' | 'failed'  ← legacy / internal
+//
+// The Booking pre-save hook keeps both fields in sync automatically.
+router.patch('/bookings/:id/payment', auth, authorize('admin', 'manager'), async (req, res) => {
   try {
     const { paymentStatus, paymentMethod } = req.body;
 
-    const ALLOWED_STATUS = ['pending', 'completed', 'failed'];
+    // Accept top-level values (Admin Panel) AND nested payment.status values (legacy)
+    const ALLOWED_STATUS = ['unpaid', 'paid', 'pending', 'completed', 'failed'];
     const ALLOWED_METHOD = ['cash', 'razorpay', 'upi', 'card', 'qr', 'staff', 'foc'];
 
     if (!paymentStatus && !paymentMethod) {
@@ -946,19 +954,35 @@ router.patch('/bookings/:id/payment', auth, authorize('admin'), async (req, res)
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     if (paymentStatus) {
-      booking.payment.status = paymentStatus;
-      booking.paymentStatus = paymentStatus === 'completed' ? 'paid' : paymentStatus === 'pending' ? 'unpaid' : 'failed';
-      if (paymentStatus === 'completed' && !booking.payment.paidAt) {
-        booking.payment.paidAt = new Date();
+      // Normalise into the top-level paymentStatus field ('unpaid' | 'paid').
+      // The pre-save hook will automatically sync payment.status accordingly.
+      if (paymentStatus === 'paid' || paymentStatus === 'completed') {
+        booking.paymentStatus = 'paid';
+        booking.payment.status = 'completed';
+        if (!booking.payment.paidAt) booking.payment.paidAt = new Date();
+      } else if (paymentStatus === 'unpaid' || paymentStatus === 'pending') {
+        booking.paymentStatus = 'unpaid';
+        booking.payment.status = 'pending';
+      } else if (paymentStatus === 'failed') {
+        booking.paymentStatus = 'unpaid';
+        booking.payment.status = 'failed';
       }
     }
+
     if (paymentMethod) {
       booking.payment.method = paymentMethod;
+      // FOC is always free — mark paid automatically
+      if (paymentMethod === 'foc') {
+        booking.paymentStatus = 'paid';
+        booking.payment.status = 'completed';
+        if (!booking.payment.paidAt) booking.payment.paidAt = new Date();
+      }
     }
 
     await booking.save();
+    await booking.populate('driver', 'name phone');
 
-    console.log(`Admin updated payment for ${booking.bookingId}: status=${paymentStatus || '(unchanged)'} method=${paymentMethod || '(unchanged)'}`);
+    console.log(`Admin updated payment for ${booking.bookingId}: paymentStatus=${booking.paymentStatus} payment.status=${booking.payment.status} method=${booking.payment.method}`);
 
     res.json({ message: 'Payment updated successfully', booking });
   } catch (error) {
